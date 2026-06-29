@@ -1,0 +1,39 @@
+name: Verify Leads Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run unit tests
+        run: pytest backend/tests -q
+
+      - name: Ingest Texas stub data
+        run: python -m scripts.ingest_texas_data
+
+      - name: Process and qualify leads
+        run: python -m scripts.process_leads --staging data/staging/texas_businesses.json
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build

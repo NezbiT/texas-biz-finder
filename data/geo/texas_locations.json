@@ -1,0 +1,37 @@
+{
+  "zips": {
+    "78701": { "lat": 30.2711, "lng": -97.7437, "city": "Austin" },
+    "78738": { "lat": 30.3588, "lng": -97.9797, "city": "Lakeway" },
+    "77002": { "lat": 29.7604, "lng": -95.3698, "city": "Houston" },
+    "75201": { "lat": 32.7875, "lng": -96.7989, "city": "Dallas" },
+    "78205": { "lat": 29.4241, "lng": -98.4936, "city": "San Antonio" },
+    "79901": { "lat": 31.7619, "lng": -106.4850, "city": "El Paso" },
+    "78624": { "lat": 30.2752, "lng": -98.8720, "city": "Fredericksburg" },
+    "77351": { "lat": 30.7110, "lng": -94.9330, "city": "Livingston" },
+    "75692": { "lat": 32.7960, "lng": -94.0596, "city": "Waskom" },
+    "77571": { "lat": 29.6658, "lng": -95.0194, "city": "La Porte" }
+  },
+  "cities": {
+    "austin": { "lat": 30.2711, "lng": -97.7437 },
+    "houston": { "lat": 29.7604, "lng": -95.3698 },
+    "dallas": { "lat": 32.7767, "lng": -96.7970 },
+    "san antonio": { "lat": 29.4241, "lng": -98.4936 },
+    "el paso": { "lat": 31.7619, "lng": -106.4850 },
+    "fredericksburg": { "lat": 30.2752, "lng": -98.8720 },
+    "lakeway": { "lat": 30.3588, "lng": -97.9797 },
+    "livingston": { "lat": 30.7110, "lng": -94.9330 },
+    "waskom": { "lat": 32.7960, "lng": -94.0596 },
+    "fort worth": { "lat": 32.7555, "lng": -97.3308 },
+    "plano": { "lat": 33.0198, "lng": -96.6989 },
+    "arlington": { "lat": 32.7357, "lng": -97.1081 },
+    "corpus christi": { "lat": 27.8006, "lng": -97.3964 },
+    "lubbock": { "lat": 33.5779, "lng": -101.8552 },
+    "amarillo": { "lat": 35.2220, "lng": -101.8313 },
+    "mcallen": { "lat": 26.2034, "lng": -98.2300 },
+    "beaumont": { "lat": 30.0802, "lng": -94.1266 },
+    "tyler": { "lat": 32.3513, "lng": -95.3011 },
+    "waco": { "lat": 31.5493, "lng": -97.1467 },
+    "midland": { "lat": 31.9973, "lng": -102.0779 },
+    "la porte": { "lat": 29.6658, "lng": -95.0194 }
+  }
+}

@@ -1,0 +1,34 @@
+export interface Lead {
+  id: number;
+  external_id: string;
+  name: string;
+  city: string;
+  county: string | null;
+  state: string;
+  zip_code: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distance_miles: number | null;
+  phone: string | null;
+  email: string | null;
+  industry: string | null;
+  employee_count: number | null;
+  website_url: string | null;
+  has_website: boolean;
+  website_reachable: boolean;
+  has_modern_website: boolean;
+  website_tech_stack: string | null;
+  website_antiquity_years: number | null;
+  website_analysis_notes: string | null;
+  facebook_url: string | null;
+  instagram_url: string | null;
+  has_active_facebook: boolean;
+  has_active_instagram: boolean;
+  is_small_business: boolean;
+  is_qualified: boolean;
+  qualification_score: number;
+  qualification_notes: string | null;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
