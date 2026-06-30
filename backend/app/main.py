@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.config import settings
 from backend.app.database import init_db
-from backend.app.routers import leads_router
+from backend.app.routers import leads_router, website_research_router
 
 
 @asynccontextmanager
@@ -25,6 +25,7 @@ app.add_middleware(
 )
 
 app.include_router(leads_router)
+app.include_router(website_research_router)
 
 
 @app.get("/health")

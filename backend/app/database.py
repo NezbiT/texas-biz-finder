@@ -21,7 +21,7 @@ engine = create_engine(
 
 
 def init_db() -> None:
-    from backend.app.models import Admin, Lead  # noqa: F401
+    from backend.app.models import Admin, Lead, WebsiteAnalysis  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
     _migrate_lead_columns()

@@ -1,8 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import AppLogo from "./AppLogo.vue";
+import LocaleToggle from "./LocaleToggle.vue";
+import ThemeToggle from "./ThemeToggle.vue";
+import WebsiteResearchPanel from "./WebsiteResearchPanel.vue";
+import { useI18n } from "../composables/useI18n";
+import type { LeadSearchPage } from "../types/lead-search";
 import type { Lead } from "../types/lead";
 
+const { t } = useI18n();
 const API_KEY = import.meta.env.VITE_ADMIN_API_KEY ?? "admin-dev-key-change-me";
+const PAGE_SIZE = 50;
 
 const leads = ref<Lead[]>([]);
 const loading = ref(false);
@@ -13,19 +21,40 @@ const radiusMiles = ref(25);
 const useRadiusSearch = ref(false);
 const industryFilter = ref("");
 const qualifiedOnly = ref(true);
-const dbStats = ref({ total: 0, qualified: 0, small_business: 0 });
+const alcoholOnly = ref(false);
+const dbStats = ref({ total: 0, qualified: 0, small_business: 0, sells_alcohol: 0 });
+const filteredTotal = ref(0);
+const currentPage = ref(1);
+const totalPages = ref(1);
+const researchLeadId = ref<number | null>(null);
 
-const qualifiedCount = computed(
-  () => leads.value.filter((lead) => lead.is_qualified).length
+const qualifiedInView = computed(
+  () => leads.value.filter((lead) => lead.is_qualified).length,
 );
 
 const radiusLabel = computed(() => `${radiusMiles.value} mi`);
 
-const resultsSummary = computed(() => {
-  const showing = leads.value.length;
-  const pool = qualifiedOnly.value ? dbStats.value.qualified : dbStats.value.small_business;
-  return `Mostrando ${showing} de ${pool} disponibles (${dbStats.value.total} en la base de datos)`;
-});
+const rangeFrom = computed(() =>
+  filteredTotal.value === 0 ? 0 : (currentPage.value - 1) * PAGE_SIZE + 1,
+);
+
+const rangeTo = computed(() =>
+  filteredTotal.value === 0
+    ? 0
+    : Math.min(currentPage.value * PAGE_SIZE, filteredTotal.value),
+);
+
+const resultsSummary = computed(() =>
+  t("resultsSummary", {
+    from: String(rangeFrom.value),
+    to: String(rangeTo.value),
+    filtered: String(filteredTotal.value),
+    total: String(dbStats.value.total),
+  }),
+);
+
+const canGoPrev = computed(() => currentPage.value > 1);
+const canGoNext = computed(() => currentPage.value < totalPages.value);
 
 function appendLocationParams(params: URLSearchParams): void {
   const location = locationFilter.value.trim();
@@ -41,14 +70,21 @@ function appendLocationParams(params: URLSearchParams): void {
   }
 }
 
-function buildSearchParams(): URLSearchParams {
+function buildSearchParams(forExport = false): URLSearchParams {
   const params = new URLSearchParams();
   if (searchQuery.value) params.set("q", searchQuery.value);
   appendLocationParams(params);
   if (industryFilter.value) params.set("industry", industryFilter.value);
   params.set("qualified_only", String(qualifiedOnly.value));
   params.set("small_business_only", "true");
-  params.set("limit", "500");
+  if (alcoholOnly.value) params.set("sells_alcohol_only", "true");
+  if (forExport) {
+    params.set("limit", "5000");
+    params.set("offset", "0");
+  } else {
+    params.set("limit", String(PAGE_SIZE));
+    params.set("offset", String((currentPage.value - 1) * PAGE_SIZE));
+  }
   return params;
 }
 
@@ -77,17 +113,48 @@ async function fetchLeads(): Promise<void> {
           : `API error: ${response.status}`;
       throw new Error(message);
     }
-    leads.value = (await response.json()) as Lead[];
+    const page = (await response.json()) as LeadSearchPage;
+    leads.value = page.items;
+    filteredTotal.value = page.total;
+    totalPages.value = page.pages;
+    currentPage.value = page.page;
+    researchLeadId.value = null;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : "Failed to load leads";
+    error.value = err instanceof Error ? err.message : t("loadFailed");
     leads.value = [];
+    filteredTotal.value = 0;
+    totalPages.value = 1;
   } finally {
     loading.value = false;
   }
 }
 
+function goToPage(page: number): void {
+  const next = Math.min(Math.max(1, page), totalPages.value);
+  if (next === currentPage.value) return;
+  currentPage.value = next;
+  void fetchLeads();
+}
+
+function goPrevPage(): void {
+  if (canGoPrev.value) goToPage(currentPage.value - 1);
+}
+
+function goNextPage(): void {
+  if (canGoNext.value) goToPage(currentPage.value + 1);
+}
+
+function toggleResearch(leadId: number): void {
+  researchLeadId.value = researchLeadId.value === leadId ? null : leadId;
+}
+
+async function onResearchSaved(): Promise<void> {
+  await fetchLeads();
+  await fetchStats();
+}
+
 async function exportCsv(): Promise<void> {
-  const response = await fetch(`/api/leads/export/csv?${buildSearchParams().toString()}`, {
+  const response = await fetch(`/api/leads/export/csv?${buildSearchParams(true).toString()}`, {
     headers: { "X-API-Key": API_KEY },
   });
   if (!response.ok) return;
@@ -101,200 +168,328 @@ async function exportCsv(): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(
+  [searchQuery, locationFilter, industryFilter, qualifiedOnly, alcoholOnly, useRadiusSearch, radiusMiles],
+  () => {
+    currentPage.value = 1;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      void fetchLeads();
+    }, 300);
+  },
+);
+
 onMounted(async () => {
-  await fetchStats();
-  await fetchLeads();
+  await Promise.all([fetchStats(), fetchLeads()]);
 });
 </script>
 
 <template>
-  <div class="min-h-screen bg-hero-gradient">
-    <header class="border-b border-white/10 bg-slate-950/40 backdrop-blur">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-violet-300">
-            Texas Lead Intelligence
-          </p>
-          <h1 class="text-2xl font-semibold text-white">TexasBizFinder</h1>
+  <div class="page-shell">
+    <header class="app-header">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
+        <div class="flex items-center gap-3 animate-fade-up">
+          <AppLogo size="md" />
+          <div>
+            <p class="text-[0.65rem] font-semibold uppercase tracking-[0.22em] accent-text">
+              {{ t("tagline") }}
+            </p>
+            <h1 class="font-display text-2xl font-bold tracking-tight text-brand-navy dark:text-white">
+              {{ t("appName") }}
+            </h1>
+          </div>
         </div>
-        <div class="rounded-full bg-white/10 px-4 py-2 text-sm text-slate-200">
-          {{ dbStats.total }} leads en DB
+
+        <div class="flex items-center gap-2 sm:gap-3">
+          <div class="stat-pill hidden sm:block">
+            <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsTexas") }}</span>
+            <span class="ml-1.5 font-semibold">{{ dbStats.total.toLocaleString() }}</span>
+          </div>
+          <div class="stat-pill hidden md:block">
+            <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsQualified") }}</span>
+            <span class="ml-1.5 font-semibold text-brand-teal dark:text-brand-teal-light">
+              {{ dbStats.qualified.toLocaleString() }}
+            </span>
+          </div>
+          <div
+            v-if="dbStats.sells_alcohol > 0"
+            class="stat-pill hidden lg:block"
+          >
+            <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsAlcohol") }}</span>
+            <span class="ml-1.5 font-semibold accent-text">
+              {{ dbStats.sells_alcohol.toLocaleString() }}
+            </span>
+          </div>
+          <LocaleToggle />
+          <ThemeToggle />
         </div>
       </div>
     </header>
 
     <main class="mx-auto max-w-6xl px-6 py-8">
-      <section
-        class="mb-8 rounded-2xl border border-white/10 bg-card-gradient p-6 shadow-xl"
-      >
+      <section class="surface-card mb-8 animate-fade-up p-6" style="animation-delay: 30ms">
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <input
             v-model="searchQuery"
             type="search"
-            placeholder="Buscar: auto, repair, nombre..."
-            class="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white placeholder:text-slate-400 focus:border-violet-400 focus:outline-none"
+            :placeholder="t('searchPlaceholder')"
+            class="input-field"
           />
           <input
             v-model="locationFilter"
             type="text"
-            placeholder="Ciudad o ZIP (ej. La Porte, 77571)"
-            class="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white placeholder:text-slate-400 focus:border-violet-400 focus:outline-none"
+            :placeholder="t('locationPlaceholder')"
+            class="input-field"
           />
           <input
             v-model="industryFilter"
             type="text"
-            placeholder="Industry"
-            class="rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-white placeholder:text-slate-400 focus:border-violet-400 focus:outline-none"
+            :placeholder="t('industryPlaceholder')"
+            class="input-field"
           />
-          <label
-            class="flex items-center gap-2 rounded-xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-200"
-          >
-            <input v-model="qualifiedOnly" type="checkbox" class="accent-violet-500" />
-            Qualified only
+          <label class="input-field flex cursor-pointer items-center gap-2">
+            <input
+              v-model="qualifiedOnly"
+              type="checkbox"
+              class="h-4 w-4 rounded accent-brand-copper"
+            />
+            <span>{{ t("qualifiedOnly") }}</span>
           </label>
         </div>
 
-        <div class="mt-4 rounded-xl border border-white/10 bg-slate-900/40 p-4">
-          <label class="flex items-center gap-2 text-sm text-slate-200">
-            <input v-model="useRadiusSearch" type="checkbox" class="accent-violet-500" />
-            Filtrar por radio (ciudad/ZIP + millas)
-          </label>
-          <template v-if="useRadiusSearch">
-            <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <span class="text-sm text-slate-200">
-                Radio: <span class="font-medium text-violet-300">{{ radiusLabel }}</span>
-              </span>
-              <span class="text-xs text-slate-400">Hasta 50 millas — solo leads con coordenadas</span>
+        <div
+          class="mt-4 rounded-xl border border-brand-navy/10 bg-brand-sand/60 p-4 transition-colors duration-150 dark:border-white/10 dark:bg-brand-navy/40"
+        >
+          <div class="flex flex-wrap gap-x-6 gap-y-3">
+            <label class="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                v-model="alcoholOnly"
+                type="checkbox"
+                class="h-4 w-4 rounded accent-brand-copper"
+              />
+              <span>{{ t("alcoholOnly") }}</span>
+            </label>
+            <label class="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                v-model="useRadiusSearch"
+                type="checkbox"
+                class="h-4 w-4 rounded accent-brand-teal"
+              />
+              {{ t("radiusFilter") }}
+            </label>
+          </div>
+          <p v-if="alcoholOnly" class="mt-2 text-xs text-brand-navy/50 dark:text-slate-400">
+            {{ t("alcoholOnlyHint") }}
+          </p>
+          <Transition name="panel">
+            <div v-if="useRadiusSearch" class="mt-3">
+              <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
+                <span>
+                  {{ t("radiusLabel") }}:
+                  <span class="font-semibold accent-text">{{ radiusLabel }}</span>
+                </span>
+                <span class="text-xs text-brand-navy/50 dark:text-slate-400">
+                  {{ t("radiusHint") }}
+                </span>
+              </div>
+              <input
+                v-model.number="radiusMiles"
+                type="range"
+                min="1"
+                max="50"
+                step="1"
+                class="mt-3 w-full accent-brand-copper"
+              />
             </div>
-            <input
-              v-model.number="radiusMiles"
-              type="range"
-              min="1"
-              max="50"
-              step="1"
-              class="mt-3 w-full accent-violet-500"
-            />
-          </template>
-          <p v-else class="mt-2 text-xs text-slate-400">
-            Sin radio: busca por nombre de ciudad o ZIP en todos los registros.
+          </Transition>
+          <p v-if="!useRadiusSearch" class="mt-2 text-xs text-brand-navy/50 dark:text-slate-400">
+            {{ t("noRadiusHint") }}
           </p>
         </div>
 
         <div class="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            class="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-violet-500"
-            :disabled="loading"
-            @click="fetchLeads"
-          >
-            {{ loading ? "Searching..." : "Search leads" }}
+          <button type="button" class="btn-primary" :disabled="loading" @click="fetchLeads">
+            <span
+              v-if="loading"
+              class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+            />
+            {{ loading ? t("searching") : t("searchLeads") }}
           </button>
-          <button
-            type="button"
-            class="rounded-xl border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/10"
-            @click="exportCsv"
-          >
-            Export CSV
+          <button type="button" class="btn-secondary" @click="exportCsv">
+            {{ t("exportCsv") }}
           </button>
         </div>
 
-        <p v-if="error" class="mt-4 text-sm text-rose-300">{{ error }}</p>
-        <p v-else class="mt-4 text-sm text-slate-300">{{ resultsSummary }}</p>
-        <p class="mt-1 text-xs text-slate-500">
-          Desmarca "Qualified only" para ver más. Para más datos:
-          <code class="text-violet-300">python -m scripts.ingest_texas_data --limit 500</code>
+        <p v-if="error" class="mt-4 text-sm text-rose-600 dark:text-rose-300">{{ error }}</p>
+        <p v-else class="mt-4 text-sm text-brand-navy/70 dark:text-slate-300">
+          {{ resultsSummary }}
+          <span v-if="qualifiedInView > 0" class="ml-2 accent-text">
+            · {{ t("qualifiedInView", { count: String(qualifiedInView) }) }}
+          </span>
+        </p>
+        <p class="mt-1 text-xs text-brand-navy/45 dark:text-slate-500">
+          {{ t("filtersAuto") }}
+          <code class="accent-link">python -m scripts.ingest_texas_data --limit 500</code>
         </p>
       </section>
 
-      <section class="space-y-4">
-        <article
-          v-for="lead in leads"
-          :key="lead.id"
-          class="rounded-2xl border border-white/10 bg-slate-900/50 p-5 backdrop-blur transition hover:border-violet-400/40"
-        >
+      <div v-if="loading && leads.length === 0" class="space-y-4">
+        <div v-for="n in 3" :key="n" class="skeleton h-36" />
+      </div>
+
+      <TransitionGroup v-else name="lead" tag="section" class="space-y-4">
+        <article v-for="lead in leads" :key="lead.id" class="lead-card">
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 class="text-lg font-semibold text-white">{{ lead.name }}</h2>
-              <p class="text-sm text-slate-300">
+              <h2 class="text-lg font-semibold text-brand-navy dark:text-white">
+                {{ lead.name }}
+              </h2>
+              <p class="text-sm text-brand-navy/65 dark:text-slate-300">
                 {{ lead.city }}, {{ lead.state }}
                 <span v-if="lead.zip_code"> · {{ lead.zip_code }}</span>
-                <span v-if="lead.county"> · {{ lead.county }} County</span>
+                <span v-if="lead.county"> · {{ lead.county }} {{ t("county") }}</span>
               </p>
-              <p v-if="lead.industry" class="mt-1 text-sm text-violet-200">
+              <p v-if="lead.industry" class="mt-1 text-sm font-medium accent-text">
                 {{ lead.industry }}
               </p>
             </div>
             <div class="text-right">
-              <span
-                v-if="lead.distance_miles !== null"
-                class="mb-2 block rounded-full bg-violet-500/20 px-3 py-1 text-xs font-medium text-violet-200"
-              >
-                {{ lead.distance_miles }} mi away
+              <span v-if="lead.distance_miles !== null" class="badge-distance mb-2 block">
+                {{ lead.distance_miles }} mi
               </span>
               <span
-                class="inline-block rounded-full px-3 py-1 text-xs font-medium"
-                :class="
-                  lead.is_qualified
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'bg-slate-700 text-slate-300'
-                "
+                v-if="lead.website_analysis_notes?.includes('TABC')"
+                class="badge mb-2 block bg-brand-copper/15 text-brand-copper dark:text-brand-copper-light"
               >
-                Score {{ lead.qualification_score }}
+                TABC
+              </span>
+              <span :class="lead.is_qualified ? 'badge-qualified' : 'badge-neutral'">
+                {{ t("score") }} {{ lead.qualification_score }}
               </span>
             </div>
           </div>
 
-          <div class="mt-4 grid gap-2 text-sm text-slate-300 md:grid-cols-2 lg:grid-cols-4">
+          <div
+            class="mt-4 grid gap-2 text-sm text-brand-navy/75 dark:text-slate-300 md:grid-cols-2 lg:grid-cols-4"
+          >
             <p>
-              Website:
-              <span :class="lead.has_website ? 'text-slate-200' : 'text-amber-300'">
-                {{ lead.has_website ? "Yes" : "No" }}
+              {{ t("website") }}:
+              <span :class="lead.has_website ? 'font-medium' : 'text-amber-600 dark:text-amber-300'">
+                {{ lead.has_website ? t("yes") : t("no") }}
               </span>
             </p>
             <p>
-              Modern:
-              <span :class="lead.has_modern_website ? 'text-emerald-300' : 'text-amber-300'">
-                {{ lead.has_modern_website ? "Yes" : "No" }}
+              {{ t("modern") }}:
+              <span
+                :class="lead.has_modern_website ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
+              >
+                {{ lead.has_modern_website ? t("yes") : t("no") }}
               </span>
             </p>
             <p v-if="lead.website_tech_stack">
-              Stack:
-              <span class="text-violet-200">{{ lead.website_tech_stack }}</span>
+              {{ t("stack") }}:
+              <span class="accent-link">{{ lead.website_tech_stack }}</span>
             </p>
             <p v-if="lead.website_antiquity_years !== null && lead.website_antiquity_years > 0">
-              Antiquity:
-              <span class="text-amber-300">~{{ lead.website_antiquity_years }} years</span>
+              {{ t("antiquity") }}:
+              <span class="text-amber-600 dark:text-amber-300">
+                {{ t("antiquityYears", { years: String(lead.website_antiquity_years) }) }}
+              </span>
             </p>
             <p v-else-if="lead.has_website && lead.website_antiquity_years === 0">
-              Antiquity:
-              <span class="text-emerald-300">Current</span>
+              {{ t("antiquity") }}:
+              <span class="text-emerald-600 dark:text-emerald-300">{{ t("antiquityCurrent") }}</span>
             </p>
             <p>
-              Facebook:
-              <span :class="lead.has_active_facebook ? 'text-emerald-300' : 'text-amber-300'">
-                {{ lead.has_active_facebook ? "Active" : "Inactive" }}
+              {{ t("facebook") }}:
+              <span
+                :class="lead.has_active_facebook ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
+              >
+                {{ lead.has_active_facebook ? t("active") : t("inactive") }}
               </span>
             </p>
             <p>
-              Instagram:
-              <span :class="lead.has_active_instagram ? 'text-emerald-300' : 'text-amber-300'">
-                {{ lead.has_active_instagram ? "Active" : "Inactive" }}
+              {{ t("instagram") }}:
+              <span
+                :class="lead.has_active_instagram ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'"
+              >
+                {{ lead.has_active_instagram ? t("active") : t("inactive") }}
               </span>
             </p>
           </div>
 
-          <p v-if="lead.website_analysis_notes" class="mt-3 text-xs text-slate-400">
+          <p
+            v-if="lead.website_analysis_notes"
+            class="mt-3 text-xs text-brand-navy/55 dark:text-slate-400"
+          >
             {{ lead.website_analysis_notes }}
           </p>
-          <p v-if="lead.qualification_notes" class="mt-1 text-xs text-slate-500">
+          <p v-if="lead.qualification_notes" class="mt-1 text-xs text-brand-navy/45 dark:text-slate-500">
             {{ lead.qualification_notes }}
           </p>
-        </article>
 
-        <p v-if="!loading && leads.length === 0" class="text-center text-slate-400">
-          No leads match your filters. Try another city, ZIP, or radius.
-        </p>
-      </section>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button type="button" class="btn-accent" @click="toggleResearch(lead.id)">
+              {{ researchLeadId === lead.id ? t("hideResearch") : t("researchWebsite") }}
+            </button>
+            <a
+              v-if="lead.website_url"
+              :href="lead.website_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn-secondary px-3 py-1.5 text-xs"
+            >
+              {{ t("openUrl") }}
+            </a>
+          </div>
+
+          <Transition name="panel" mode="out-in">
+            <WebsiteResearchPanel
+              v-if="researchLeadId === lead.id"
+              :key="lead.id"
+              :lead="lead"
+              :api-key="API_KEY"
+              @saved="onResearchSaved"
+              @close="researchLeadId = null"
+            />
+          </Transition>
+        </article>
+      </TransitionGroup>
+
+      <p
+        v-if="!loading && leads.length === 0"
+        class="animate-fade-up py-16 text-center text-brand-navy/50 dark:text-slate-400"
+      >
+        {{ t("emptyLeads") }}
+      </p>
+
+      <nav
+        v-if="filteredTotal > PAGE_SIZE"
+        class="mt-8 flex flex-wrap items-center justify-center gap-3"
+        :aria-label="t('pageOf', { page: String(currentPage), pages: String(totalPages) })"
+      >
+        <button
+          type="button"
+          class="btn-secondary px-4 py-2 text-sm"
+          :disabled="!canGoPrev || loading"
+          @click="goPrevPage"
+        >
+          {{ t("prevPage") }}
+        </button>
+        <span class="stat-pill text-sm">
+          {{ t("pageOf", { page: String(currentPage), pages: String(totalPages) }) }}
+        </span>
+        <button
+          type="button"
+          class="btn-secondary px-4 py-2 text-sm"
+          :disabled="!canGoNext || loading"
+          @click="goNextPage"
+        >
+          {{ t("nextPage") }}
+        </button>
+      </nav>
     </main>
   </div>
 </template>

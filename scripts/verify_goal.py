@@ -94,14 +94,15 @@ def run_backend_probe(scratch: Path) -> None:
                     timeout=10,
                 )
                 data = leads.json()
+                items = data["items"] if isinstance(data, dict) else data
                 probe_lines.append(
                     f"probe_run_{run}: health={health.status_code} "
-                    f"leads={leads.status_code} count={len(data)}"
+                    f"leads={leads.status_code} count={len(items)}"
                 )
                 assert health.status_code == 200
                 assert leads.status_code == 200
-                assert len(data) >= 3
-                assert all(item["is_qualified"] for item in data)
+                assert len(items) >= 3
+                assert all(item["is_qualified"] for item in items)
         finally:
             proc.terminate()
             try:

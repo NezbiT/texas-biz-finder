@@ -49,8 +49,18 @@ class LeadSearchParams(BaseModel):
     industry: str | None = None
     qualified_only: bool = True
     small_business_only: bool = True
+    sells_alcohol_only: bool = False
     limit: int = Field(default=50, ge=1, le=500)
     offset: int = Field(default=0, ge=0)
+
+
+class LeadSearchPage(BaseModel):
+    items: list[LeadRead]
+    total: int
+    limit: int
+    offset: int
+    page: int
+    pages: int
 
 
 class LeadExport(BaseModel):

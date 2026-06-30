@@ -1,0 +1,56 @@
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    size?: "sm" | "md" | "lg";
+  }>(),
+  { size: "md" },
+);
+
+const sizes = {
+  sm: "h-9 w-9",
+  md: "h-11 w-11",
+  lg: "h-14 w-14",
+};
+</script>
+
+<template>
+  <svg
+    :class="['shrink-0', sizes[size]]"
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <defs>
+      <linearGradient id="tbf-ring" x1="8" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#2a9d8f" />
+        <stop offset="1" stop-color="#c87941" />
+      </linearGradient>
+      <linearGradient id="tbf-star" x1="18" y1="14" x2="30" y2="34" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#e8a55c" />
+        <stop offset="1" stop-color="#c87941" />
+      </linearGradient>
+    </defs>
+    <circle cx="24" cy="24" r="21" stroke="url(#tbf-ring)" stroke-width="2.5" opacity="0.9" />
+    <circle
+      cx="24"
+      cy="24"
+      r="14"
+      stroke="currentColor"
+      class="text-brand-navy/20 dark:text-white/15"
+      stroke-width="1.5"
+      stroke-dasharray="4 6"
+    />
+    <path
+      d="M24 14.5L25.9 20.1H31.8L27 23.5L28.9 29.1L24 25.7L19.1 29.1L21 23.5L16.2 20.1H22.1L24 14.5Z"
+      fill="url(#tbf-star)"
+    />
+    <circle cx="35" cy="35" r="5.5" fill="#1a2744" class="dark:fill-[#0c1222]" stroke="#2a9d8f" stroke-width="1.5" />
+    <path
+      d="M33.2 35h3.6M35 33.2v3.6"
+      stroke="#e8f4f2"
+      stroke-width="1.4"
+      stroke-linecap="round"
+    />
+  </svg>
+</template>

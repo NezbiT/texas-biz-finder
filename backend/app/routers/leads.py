@@ -14,10 +14,15 @@ from backend.app.schemas.lead import (
     LeadExport,
     LeadMarkRequest,
     LeadRead,
+    LeadSearchPage,
     LeadSearchParams,
     LeadUpsertRequest,
 )
-from backend.app.services.lead_search import search_leads as execute_lead_search
+from backend.app.services import csv_lead_store
+from backend.app.services.lead_search import (
+    search_leads as execute_lead_search,
+    search_leads_page as execute_lead_search_page,
+)
 from scripts.common.geocoding import geocode_lead
 from scripts.common.qualification import qualify_lead
 from scripts.common.website_analysis import analyze_website
@@ -34,6 +39,7 @@ def _search_params(
     industry: str | None = None,
     qualified_only: bool = True,
     small_business_only: bool = True,
+    sells_alcohol_only: bool = False,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> LeadSearchParams:
@@ -46,6 +52,7 @@ def _search_params(
         industry=industry,
         qualified_only=qualified_only,
         small_business_only=small_business_only,
+        sells_alcohol_only=sells_alcohol_only,
         limit=limit,
         offset=offset,
     )
@@ -57,6 +64,11 @@ def lead_stats(
     _: str = Depends(require_admin),
 ) -> dict[str, int]:
     """Return database totals so the UI can explain filtered result counts."""
+    if settings.use_csv_backend:
+        csv_stats = csv_lead_store.lead_stats()
+        if csv_stats["total"] > 0 or csv_lead_store.processed_data_ready():
+            return csv_stats
+
     total = session.exec(select(func.count()).select_from(Lead)).one()
     qualified = session.exec(
         select(func.count()).select_from(Lead).where(Lead.is_qualified.is_(True))
@@ -68,16 +80,19 @@ def lead_stats(
         "total": total,
         "qualified": qualified,
         "small_business": small_business,
+        "sells_alcohol": 0,
     }
 
 
-@router.get("", response_model=list[LeadRead])
+@router.get("", response_model=LeadSearchPage)
 def search_leads(
     params: LeadSearchParams = Depends(_search_params),
     session: Session = Depends(get_session),
     _: str = Depends(require_admin),
-) -> list[LeadRead]:
-    return execute_lead_search(session, params)
+) -> LeadSearchPage:
+    if settings.use_csv_backend and csv_lead_store.processed_data_ready():
+        return csv_lead_store.search_leads_page(params)
+    return execute_lead_search_page(session, params)
 
 
 def _export_search_params(
@@ -89,6 +104,7 @@ def _export_search_params(
     industry: str | None = None,
     qualified_only: bool = True,
     small_business_only: bool = True,
+    sells_alcohol_only: bool = False,
     limit: int = Query(default=500, ge=1, le=5000),
 ) -> LeadSearchParams:
     return LeadSearchParams(
@@ -100,6 +116,7 @@ def _export_search_params(
         industry=industry,
         qualified_only=qualified_only,
         small_business_only=small_business_only,
+        sells_alcohol_only=sells_alcohol_only,
         limit=limit,
         offset=0,
     )
@@ -126,8 +143,12 @@ def export_leads_csv(
     session: Session = Depends(get_session),
     _: str = Depends(require_admin),
 ) -> StreamingResponse:
-    export_params = params
-    leads = execute_lead_search(session, export_params)
+    if settings.use_csv_backend and csv_lead_store.processed_data_ready():
+        page = csv_lead_store.search_leads_page(params)
+        leads = page.items
+    else:
+        export_params = params
+        leads = execute_lead_search(session, export_params)
 
     buffer = io.StringIO()
     writer = csv.DictWriter(

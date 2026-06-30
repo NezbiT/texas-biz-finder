@@ -37,12 +37,50 @@ def test_search_qualified_leads(client: TestClient) -> None:
     )
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) >= 3
-    assert all(lead["is_qualified"] for lead in data)
-    assert all(lead["is_small_business"] for lead in data)
-    names = {lead["name"] for lead in data}
+    assert isinstance(data, dict)
+    assert "items" in data
+    assert data["total"] >= 3
+    assert len(data["items"]) >= 3
+    assert all(lead["is_qualified"] for lead in data["items"])
+    assert all(lead["is_small_business"] for lead in data["items"])
+    names = {lead["name"] for lead in data["items"]}
     assert "Metroplex Logistics Corp" not in names
+
+
+def test_search_leads_pagination(client: TestClient) -> None:
+    response = client.get(
+        "/api/leads",
+        headers={"X-API-Key": "admin-dev-key-change-me"},
+        params={
+            "qualified_only": False,
+            "small_business_only": False,
+            "limit": 2,
+            "offset": 0,
+        },
+    )
+    assert response.status_code == 200
+    page1 = response.json()
+    assert page1["limit"] == 2
+    assert page1["page"] == 1
+    assert len(page1["items"]) == 2
+    assert page1["total"] >= 4
+
+    response = client.get(
+        "/api/leads",
+        headers={"X-API-Key": "admin-dev-key-change-me"},
+        params={
+            "qualified_only": False,
+            "small_business_only": False,
+            "limit": 2,
+            "offset": 2,
+        },
+    )
+    page2 = response.json()
+    assert page2["page"] == 2
+    assert len(page2["items"]) >= 1
+    page1_ids = {lead["id"] for lead in page1["items"]}
+    page2_ids = {lead["id"] for lead in page2["items"]}
+    assert page1_ids.isdisjoint(page2_ids)
 
 
 def test_export_json(client: TestClient) -> None:
@@ -62,7 +100,7 @@ def test_mark_lead(client: TestClient) -> None:
         headers={"X-API-Key": "admin-dev-key-change-me"},
         params={"qualified_only": False, "small_business_only": False, "limit": 1},
     ).json()
-    lead_id = leads[0]["id"]
+    lead_id = leads["items"][0]["id"]
 
     response = client.patch(
         f"/api/leads/{lead_id}/mark",
@@ -107,10 +145,10 @@ def test_radius_search_by_zip(client: TestClient) -> None:
     )
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) >= 1
-    assert all(item.get("distance_miles") is not None for item in data)
-    assert all(item["distance_miles"] <= 50 for item in data)
+    assert isinstance(data, dict)
+    assert len(data["items"]) >= 1
+    assert all(item.get("distance_miles") is not None for item in data["items"])
+    assert all(item["distance_miles"] <= 50 for item in data["items"])
 
 
 def test_radius_search_by_city(client: TestClient) -> None:
@@ -127,8 +165,8 @@ def test_radius_search_by_city(client: TestClient) -> None:
     )
     assert response.status_code == 200
     data = response.json()
-    assert len(data) >= 1
-    distances = [item["distance_miles"] for item in data]
+    assert len(data["items"]) >= 1
+    distances = [item["distance_miles"] for item in data["items"]]
     assert distances == sorted(distances)
 
 

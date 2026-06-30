@@ -1,210 +1,238 @@
+<p align="center">
+  <img src="docs/logo.svg" alt="TexasBizFinder logo" width="96" height="96" />
+</p>
+
 # TexasBizFinder v2
 
-Monorepo para encontrar y calificar **pequeños negocios en Texas** que probablemente no tienen sitio web moderno ni presencia activa en Facebook o Instagram.
+Monorepo para encontrar y calificar **pequeños negocios en Texas** — con o sin sitio web moderno, presencia en redes, y venta de alcohol (TABC).
 
-**Stack:** SQLite + SQLModel · FastAPI + Pydantic v2 · Vue 3 + TypeScript + Tailwind. Costo cero, todo local.
+**Stack:** DuckDB + CSV (bulk) · SQLite + SQLModel (legacy) · FastAPI · Vue 3 + TypeScript + Tailwind. Costo cero, todo local.
 
-> **v2** reemplaza la app Streamlit de v1 (`app/`, `core/scraper.py`) por un monorepo con API REST, UI Vue y scripts de ingesta desde datos abiertos de Texas.
+> **v2** reemplaza la app Streamlit de v1 por un monorepo con API REST, UI Vue, ingesta masiva desde [data.texas.gov](https://data.texas.gov), e investigación web con DuckDuckGo + Playwright.
 
-## Novedades en v2
+## Novedades recientes
 
-| Área | v1 (Streamlit) | v2 |
-|------|----------------|-----|
-| UI | Streamlit multipágina | Vue 3 + Tailwind (`LeadsDashboard`) |
-| Backend | Lógica en `core/` | FastAPI con auth por API key |
-| Datos | Scraper Polars | [data.texas.gov](https://data.texas.gov/resource/9cir-efmm.json) + demo seed |
-| Búsqueda | Texto básico | Ciudad, ZIP, radio opcional (1–50 mi), industria |
-| Web | Detección simple | Stack, moderno/legacy, antigüedad estimada |
-| Export | CSV en UI | JSON/CSV vía API + marcar/upsert leads |
+| Área | Detalle |
+|------|---------|
+| **Bulk pipeline** | Descarga ~3.36M franchise taxpayers + ~3.78M mixed beverage receipts |
+| **TABC / alcohol** | Cruce por `taxpayer_number` → `sells_alcohol`, receipts, segmento bar/restaurant |
+| **Lectura rápida** | CSV (archivo) + DuckDB (API) + JSON (stats) — sin escanear millones por request |
+| **Paginación** | 50 leads por página en UI y API (`limit` + `offset`) |
+| **UI** | Dark/light, logo Texas, i18n **EN** por defecto + toggle **ES** |
+| **Filtros** | Calificados, industria, ciudad/ZIP, radio, **solo venden alcohol (TABC)** |
+| **Website research** | DuckDuckGo + Playwright por lead (1 análisis a la vez) |
+
+### Cifras tras `bulk_pipeline` (producción local)
+
+| Métrica | Cantidad |
+|---------|----------|
+| Franchise taxpayers (Texas) | 3,359,302 |
+| Leads procesados / calificados | 536,156 |
+| Con venta de alcohol (TABC) | 22,599 |
 
 ## Estructura del proyecto
 
 ```
 TexasBizFinder/
-├── backend/                    # API FastAPI
+├── docs/
+│   └── logo.svg                # Logo para README / docs
+├── backend/
 │   ├── app/
-│   │   ├── main.py             # Punto de entrada
-│   │   ├── config.py           # SQLite, admin key, CORS
-│   │   ├── database.py         # Engine SQLModel + seed admin
-│   │   ├── models/             # Lead, Admin
-│   │   ├── schemas/            # Pydantic v2
-│   │   ├── routers/leads.py    # search, export, stats, upsert
-│   │   ├── services/           # lead_search (geo + filtros)
-│   │   └── core/auth.py        # Superusuario único
-│   └── tests/                  # 28+ tests
-├── frontend/                   # Vue 3 + TS + Tailwind
-│   └── src/components/LeadsDashboard.vue
+│   │   ├── routers/
+│   │   │   ├── leads.py        # search paginado, stats, export
+│   │   │   └── website_research.py
+│   │   └── services/
+│   │       ├── csv_lead_store.py   # Lectura DuckDB (API rápida)
+│   │       ├── lead_search.py      # SQLite fallback
+│   │       ├── playwright_analyzer.py
+│   │       └── duckduckgo_search.py
+│   └── tests/                  # 38 tests
+├── frontend/
+│   └── src/
+│       ├── components/         # LeadsDashboard, AppLogo, LocaleToggle, ThemeToggle
+│       ├── composables/        # useI18n, useTheme
+│       └── i18n/               # en.ts, es.ts
+├── data/
+│   ├── raw/                    # CSV masivos (gitignored, generados)
+│   ├── processed/              # CSV + DuckDB + bulk_stats.json (gitignored)
+│   └── geo/texas_locations.json
 ├── scripts/
-│   ├── ingest_texas_data.py    # Descarga data.texas.gov
-│   ├── process_leads.py        # Califica y persiste
-│   ├── verify_websites.py      # Re-analiza sitios en DB
+│   ├── bulk_pipeline.py        # download-franchise | download-beverage | process | all
+│   ├── ingest_texas_data.py    # Ingesta ligera (demo / staging)
 │   └── common/
-│       ├── data_sources.py
-│       ├── qualification.py
-│       ├── geocoding.py
-│       └── website_analysis.py
-├── data/geo/texas_locations.json   # Coordenadas ciudad/ZIP (TX)
-├── run.py                      # Un comando: seed + API
-└── .github/workflows/verify-leads.yml
+│       ├── socrata_bulk.py
+│       └── lead_materialize.py # CSV → DuckDB tipado
+└── run.py
 ```
 
 ## Requisitos
 
 - Python 3.11+
-- Node.js 18+ (solo para el frontend)
+- Node.js 18+ (frontend)
+- ~2 GB disco libre para CSV masivos (opcional)
 
 ## Setup rápido
 
 ```bash
 cd TexasBizFinder
-
-# Entorno Python
 python -m venv .venv
 .venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
 pip install -e ".[dev]"
+playwright install chromium   # solo si usas website research
 
-# Frontend (opcional)
 cd frontend && npm install && cd ..
+copy .env.example .env
 ```
 
-Copia variables de entorno:
+## Arrancar (desarrollo)
+
+**Backend:**
 
 ```bash
-copy .env.example .env        # Windows
-# cp .env.example .env        # macOS/Linux
+python run.py --no-seed
 ```
 
-## Un solo comando (backend + datos)
+`--no-seed` evita re-ingestar el demo SQLite si ya tienes el bulk pipeline.
 
-```bash
-python run.py
-```
-
-Esto:
-
-1. Crea SQLite en `data/texasbizfinder.db`
-2. Ingesta datos públicos de Texas (API + demo seed)
-3. Califica leads (sin web moderna + sin redes activas)
-4. Arranca la API en `http://127.0.0.1:8000`
-
-### Frontend en desarrollo
-
-Con el backend corriendo, en otra terminal:
+**Frontend:**
 
 ```bash
 cd frontend
 npm run dev
-```
-
-Abre `http://localhost:5173` — proxy hacia la API.
-
-**Windows (PowerShell con execution policy restrictiva):**
-
-```powershell
+# Windows (PowerShell restrictivo):
 node .\node_modules\vite\bin\vite.js --host 127.0.0.1 --port 5173
 ```
 
-## Scripts de ingesta
+- UI: http://127.0.0.1:5173  
+- API: http://127.0.0.1:8000  
+
+## Pipeline masivo (3.36M negocios)
+
+Descarga, cruza con TABC y materializa DuckDB para la API.
 
 ```bash
-# Descarga desde data.texas.gov (por defecto 50 registros + demo seed)
-python -m scripts.ingest_texas_data
+# Todo el flujo (~15–20 min según red/disco)
+python -m scripts.bulk_pipeline all
 
-# Más registros
-python -m scripts.ingest_texas_data --limit 2000
-
-# Filtrar por palabra en el nombre legal (AUTO, REPAIR, MECHANIC, AUTOMOTIVE…)
-python -m scripts.ingest_texas_data --limit 500 --keyword AUTO --output data/staging/kw_AUTO.json
-
-# Calificar y guardar en SQLite
-python -m scripts.process_leads --staging data/staging/texas_businesses.json
-
-# Re-analizar sitios web ya guardados
-python -m scripts.verify_websites
-python -m scripts.verify_websites --no-fetch   # solo heurísticas offline
+# O por pasos
+python -m scripts.bulk_pipeline download-franchise
+python -m scripts.bulk_pipeline download-beverage
+python -m scripts.bulk_pipeline process
 ```
 
-## API (superusuario único)
+### Archivos generados
 
-Todas las rutas de leads requieren:
+| Archivo | Formato | Uso |
+|---------|---------|-----|
+| `data/raw/texas_franchise_taxpayers.csv` | CSV | 3.36M contribuyentes activos |
+| `data/raw/mixed_beverage_receipts.csv` | CSV | Receipts mensuales TABC |
+| `data/processed/texas_leads_processed.csv` | CSV | Respaldo / export |
+| `data/processed/texas_leads.duckdb` | DuckDB | **Lectura API** (rápida) |
+| `data/processed/bulk_stats.json` | JSON | Totales instantáneos en UI |
+
+### Formato de datos (¿CSV o JSON?)
+
+- **Millones de filas tabulares → CSV** (más compacto y rápido que JSON)
+- **Metadatos pequeños → JSON** (`bulk_stats.json`, checkpoints)
+- **API en runtime → DuckDB** (materializado desde CSV al procesar)
+
+Configura en `.env`:
+
+```
+DATA_BACKEND=csv
+PROCESSED_DUCKDB_PATH=data/processed/texas_leads.duckdb
+```
+
+Con `DATA_BACKEND=sqlite` vuelves al demo SQLite (~3k leads de staging).
+
+## Ingesta ligera (demo / staging)
+
+```bash
+python -m scripts.ingest_texas_data --limit 2000
+python -m scripts.ingest_texas_data --limit 500 --keyword AUTO --output data/staging/kw_AUTO.json
+python -m scripts.process_leads --staging data/staging/texas_businesses.json
+```
+
+## API
+
+Header requerido:
 
 ```
 X-API-Key: admin-dev-key-change-me
 ```
 
-Configura en `.env`:
-
-```
-ADMIN_API_KEY=tu-clave-secreta
-DATABASE_URL=sqlite:///data/texasbizfinder.db
-```
-
-### Endpoints
+### Endpoints principales
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | GET | `/health` | Health check |
-| GET | `/api/leads/stats` | Totales (total, qualified, small_business) |
-| GET | `/api/leads` | Buscar/filtrar leads |
-| GET | `/api/leads/export/json` | Exportar JSON |
-| GET | `/api/leads/export/csv` | Exportar CSV |
-| PATCH | `/api/leads/{id}/mark` | Marcar/desmarcar lead |
-| POST | `/api/leads/upsert` | Crear/actualizar y recalificar |
+| GET | `/api/leads/stats` | Total Texas, calificados, venden alcohol |
+| GET | `/api/leads` | Búsqueda **paginada** (`LeadSearchPage`) |
+| GET | `/api/leads/export/csv` | Exportar filtros actuales |
+| POST | `/api/leads/{id}/website-search` | DuckDuckGo |
+| POST | `/api/leads/{id}/website-analyze` | Playwright (1 a la vez) |
 
 ### Parámetros de búsqueda
 
 | Parámetro | Descripción |
 |-----------|-------------|
-| `q` | Texto libre (nombre, ciudad, industria) |
-| `city` | Ciudad (con geocoding) |
-| `zip_code` | Código postal |
-| `radius_miles` | Radio 1–50 mi desde ciudad/ZIP (opcional) |
-| `county` | Condado |
-| `industry` | Industria inferida o registrada |
-| `qualified_only` | Solo leads calificados (default: `true`) |
-| `small_business_only` | Solo ≤ 50 empleados (default: `true`) |
-| `limit` | Máx. resultados 1–500 (default: 50) |
+| `q` | Texto libre |
+| `city` / `zip_code` | Ubicación |
+| `radius_miles` | Radio 1–50 mi (SQLite + geocoding) |
+| `industry` | Industria inferida |
+| `qualified_only` | Solo calificados (default: `true`) |
+| `small_business_only` | Excluir corporaciones grandes (default: `true`) |
+| `sells_alcohol_only` | Solo negocios con receipts TABC |
+| `limit` | Por página, default **50** (máx. 500) |
 | `offset` | Paginación |
 
-Ejemplos:
+Respuesta paginada:
 
-```bash
-# Por ciudad
-curl -H "X-API-Key: admin-dev-key-change-me" \
-  "http://127.0.0.1:8000/api/leads?city=Austin&qualified_only=false"
-
-# Radio 25 mi desde ZIP
-curl -H "X-API-Key: admin-dev-key-change-me" \
-  "http://127.0.0.1:8000/api/leads?zip_code=78701&radius_miles=25&limit=100"
-
-# Industria + texto
-curl -H "X-API-Key: admin-dev-key-change-me" \
-  "http://127.0.0.1:8000/api/leads?q=auto&industry=automotive"
+```json
+{
+  "items": [...],
+  "total": 536156,
+  "limit": 50,
+  "offset": 0,
+  "page": 1,
+  "pages": 10724
+}
 ```
 
-## Lógica de calificación
+Ejemplo — solo bares/restaurantes con alcohol:
 
-Un lead **calificado** cumple:
+```bash
+curl -H "X-API-Key: admin-dev-key-change-me" \
+  "http://127.0.0.1:8000/api/leads?sells_alcohol_only=true&limit=50"
+```
 
-- **Pequeño negocio** (≤ 50 empleados por defecto; grandes empresas excluidas)
-- **Sin** sitio web moderno (HTTPS, sin dominios legacy/placeholder)
-- **Sin** Facebook ni Instagram activos (URLs reales de perfil)
+## UI (Vue)
 
-### Análisis de sitio web
+- **Texas businesses** — total en header (desde `bulk_stats.json` / DuckDB)
+- **Paginación** — 50 leads, Previous / Next
+- **Idioma** — EN por defecto, toggle ES
+- **Tema** — dark / light
+- **Filtro TABC** — “Sell alcohol only”
+- **Research website** — panel DuckDuckGo + Playwright por lead
 
-`scripts/common/website_analysis.py` detecta:
+## Investigación web (Playwright)
 
-- Si existe URL y si responde HTTP
-- Stack tecnológico (WordPress, Wix, React, etc.)
-- Si el sitio es moderno o legacy
-- Antigüedad estimada en años (`website_antiquity_years`)
+```bash
+pip install -e ".[dev]"
+playwright install chromium
+```
 
-Campos en el modelo `Lead`: `has_website`, `website_reachable`, `has_modern_website`, `website_tech_stack`, `website_antiquity_years`, `website_analysis_notes`.
+Flujo: Search DuckDuckGo → elegir URL → Analyze → Download HTML report.
 
-### Búsqueda geográfica
+## Lógica de calificación (bulk)
 
-`scripts/common/geocoding.py` usa `data/geo/texas_locations.json` para resolver ciudad/ZIP y filtrar por distancia haversine. En la UI, el radio es **opcional** (checkbox); sin radio, filtra por ciudad exacta.
+Un lead **procesado** cumple:
+
+- Activo en SOS / franchise tax
+- No es corporación grande (heurística por nombre)
+- Tiene señal de valor: **venta de alcohol TABC**, industria inferida, o NAICS
+
+Score ejemplo: alcohol TABC = 0.85, keyword industria = 0.55, NAICS = 0.45.
 
 ## Tests
 
@@ -212,25 +240,8 @@ Campos en el modelo `Lead`: `has_website`, `website_reachable`, `has_modern_webs
 pytest backend/tests -q
 ```
 
-## GitHub Actions
-
-`.github/workflows/verify-leads.yml` ejecuta en cada push/PR:
-
-- Tests unitarios e integración
-- Ingesta stub + procesamiento de leads
-- Build del frontend
-
-## Migración desde v1
-
-La v1 usaba Streamlit con `requirements.txt` y carpetas `app/`, `core/`, `utils/`. La v2 es un reemplazo completo:
-
-1. Clona/actualiza el repo
-2. `pip install -e ".[dev]"` (reemplaza `pip install -r requirements.txt`)
-3. `python run.py` en lugar de `streamlit run app/main.py`
-4. Usa la UI Vue o la API REST
-
-Ver [CHANGELOG.md](CHANGELOG.md) para el detalle de cambios.
+38 tests — API, bulk pipeline, website research, Playwright unit.
 
 ## Licencia
 
-Uso personal / interno. Datos de Texas sujetos a las políticas de [data.texas.gov](https://data.texas.gov/).
+Uso personal / interno. Datos de Texas sujetos a [data.texas.gov](https://data.texas.gov/).

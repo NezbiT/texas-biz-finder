@@ -1,4 +1,4 @@
-"""Static verification of frontend structure and Tailwind gradient styles."""
+"""Static verification of frontend structure and design tokens."""
 
 from pathlib import Path
 
@@ -15,17 +15,20 @@ def test_frontend_package_and_tooling() -> None:
     assert (FRONTEND / "tailwind.config.js").exists()
 
 
-def test_main_component_has_gradient_design() -> None:
+def test_main_component_has_texas_design_system() -> None:
     component = (FRONTEND / "src" / "components" / "LeadsDashboard.vue").read_text(
         encoding="utf-8"
     )
-    assert "bg-hero-gradient" in component
-    assert "bg-card-gradient" in component
-    assert "Export CSV" in component
-    assert "Search leads" in component
+    assert "page-shell" in component
+    assert "surface-card" in component
+    assert "LocaleToggle" in component
+    assert 't("exportCsv")' in component
+    assert 't("searchLeads")' in component
+    assert "PAGE_SIZE = 50" in component
 
 
-def test_tailwind_config_defines_gradients() -> None:
+def test_tailwind_config_defines_brand_tokens() -> None:
     config = (FRONTEND / "tailwind.config.js").read_text(encoding="utf-8")
-    assert "hero-gradient" in config
-    assert "card-gradient" in config
+    assert "copper:" in config
+    assert "teal:" in config
+    assert "fade-up" in config

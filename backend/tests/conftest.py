@@ -18,9 +18,15 @@ if str(ROOT) not in sys.path:
 def isolated_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator:
     db_path = tmp_path / "test.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("PROCESSED_DUCKDB_PATH", str(tmp_path / "no-processed.duckdb"))
+    monkeypatch.setenv("PROCESSED_CSV_PATH", str(tmp_path / "no-processed.csv"))
 
     import backend.app.config as config
     import backend.app.database as database
+    from backend.app.services import csv_lead_store
+
+    csv_lead_store.close_connection()
 
     importlib.reload(config)
     importlib.reload(database)
@@ -31,4 +37,5 @@ def isolated_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator:
 
     yield database
 
+    csv_lead_store.close_connection()
     database.engine.dispose()
