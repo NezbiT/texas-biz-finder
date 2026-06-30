@@ -1,14 +1,18 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="TexasBizFinder logo" width="96" height="96" />
+  <img src="docs/banner-v3.svg" alt="TexasBizFinder v3" width="920" />
 </p>
 
-# TexasBizFinder v2
+<p align="center">
+  <img src="docs/logo.svg" alt="TexasBizFinder logo" width="72" height="72" />
+</p>
+
+# TexasBizFinder v3
 
 Monorepo para encontrar y calificar **pequeños negocios en Texas** — con o sin sitio web moderno, presencia en redes, y venta de alcohol (TABC).
 
 **Stack:** DuckDB + CSV (bulk) · SQLite + SQLModel (legacy) · FastAPI · Vue 3 + TypeScript + Tailwind. Costo cero, todo local.
 
-> **v2** reemplaza la app Streamlit de v1 por un monorepo con API REST, UI Vue, ingesta masiva desde [data.texas.gov](https://data.texas.gov), e investigación web con DuckDuckGo + Playwright.
+> **v3** añade pipeline masivo (3.36M registros), cruce TABC, API paginada con DuckDB, UI bilingüe y acceso remoto vía Tailscale.
 
 ## Novedades recientes
 
@@ -82,6 +86,15 @@ playwright install chromium   # solo si usas website research
 
 cd frontend && npm install && cd ..
 copy .env.example .env
+```
+
+## Acceso remoto con Tailscale (gratis)
+
+Deja la app en tu PC y ábrela desde el celular u otra máquina en tu tailnet:
+
+```powershell
+.\start-tailscale.ps1
+# En el otro dispositivo: http://<tu-ip-tailscale>:5173
 ```
 
 ## Arrancar (desarrollo)

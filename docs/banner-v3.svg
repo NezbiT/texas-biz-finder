@@ -1,0 +1,38 @@
+<svg width="920" height="220" viewBox="0 0 920 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TexasBizFinder v3">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="920" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0c1222"/>
+      <stop offset="0.55" stop-color="#1a2744"/>
+      <stop offset="1" stop-color="#1e3d3a"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="36" y1="36" x2="132" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2a9d8f"/>
+      <stop offset="1" stop-color="#c87941"/>
+    </linearGradient>
+    <linearGradient id="star" x1="68" y1="58" x2="100" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e8a55c"/>
+      <stop offset="1" stop-color="#c87941"/>
+    </linearGradient>
+    <linearGradient id="title" x1="160" y1="70" x2="560" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8f6f2"/>
+      <stop offset="1" stop-color="#e8a55c"/>
+    </linearGradient>
+  </defs>
+  <rect width="920" height="220" rx="20" fill="url(#bg)"/>
+  <rect x="1" y="1" width="918" height="218" rx="19" stroke="#2a9d8f" stroke-opacity="0.35" stroke-width="2"/>
+  <circle cx="84" cy="110" r="52" stroke="url(#ring)" stroke-width="3" opacity="0.95"/>
+  <circle cx="84" cy="110" r="34" stroke="#f8f6f2" stroke-opacity="0.12" stroke-width="2" stroke-dasharray="5 7"/>
+  <path d="M84 78L87.8 92.2H102.8L90.5 100.8L94.3 115L84 106.4L73.7 115L77.5 100.8L65.2 92.2H80.2L84 78Z" fill="url(#star)"/>
+  <circle cx="118" cy="142" r="11" fill="#0c1222" stroke="#2a9d8f" stroke-width="2"/>
+  <path d="M114.5 142h7M118 138.5v7" stroke="#e8f4f2" stroke-width="2" stroke-linecap="round"/>
+  <text x="160" y="98" fill="url(#title)" font-family="Georgia, 'Times New Roman', serif" font-size="46" font-weight="700">TexasBizFinder</text>
+  <rect x="160" y="112" width="58" height="30" rx="8" fill="#c87941"/>
+  <text x="189" y="133" fill="#0c1222" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" text-anchor="middle">v3</text>
+  <text x="160" y="168" fill="#a8c4be" font-family="Segoe UI, Arial, sans-serif" font-size="17">3.36M Texas leads · TABC alcohol · DuckDB · EN/ES · Tailscale-ready</text>
+  <text x="160" y="194" fill="#7d9a93" font-family="Segoe UI, Arial, sans-serif" font-size="13">Bulk pipeline · Paginated API · Website research · $0 local hosting</text>
+  <rect x="700" y="52" width="180" height="116" rx="14" fill="#ffffff08" stroke="#ffffff18"/>
+  <text x="720" y="88" fill="#2a9d8f" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">LIVE STATS</text>
+  <text x="720" y="118" fill="#f8f6f2" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">536,156</text>
+  <text x="720" y="140" fill="#a8c4be" font-family="Segoe UI, Arial, sans-serif" font-size="12">qualified leads</text>
+  <text x="720" y="164" fill="#e8a55c" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="600">22,599 TABC</text>
+</svg>
