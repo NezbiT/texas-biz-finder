@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import AppLogo from "./AppLogo.vue";
+import PageParticles from "./PageParticles.vue";
 import LocaleToggle from "./LocaleToggle.vue";
 import ThemeToggle from "./ThemeToggle.vue";
 import WebsiteResearchPanel from "./WebsiteResearchPanel.vue";
@@ -188,6 +189,7 @@ onMounted(async () => {
 
 <template>
   <div class="page-shell">
+    <PageParticles />
     <div class="page-content">
     <header class="app-header">
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
@@ -212,11 +214,16 @@ onMounted(async () => {
         <div class="flex items-center gap-2 sm:gap-3">
           <div class="stat-pill animate-stat-pop hidden sm:block" style="animation-delay: 220ms">
             <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsTexas") }}</span>
-            <span class="ml-1.5 font-semibold">{{ dbStats.total.toLocaleString() }}</span>
+            <span :key="dbStats.total" class="stat-number ml-1.5 font-semibold">{{
+              dbStats.total.toLocaleString()
+            }}</span>
           </div>
           <div class="stat-pill animate-stat-pop hidden md:block" style="animation-delay: 280ms">
             <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsQualified") }}</span>
-            <span class="ml-1.5 font-semibold text-brand-teal dark:text-brand-teal-light">
+            <span
+              :key="dbStats.qualified"
+              class="stat-number ml-1.5 font-semibold text-brand-teal dark:text-brand-teal-light"
+            >
               {{ dbStats.qualified.toLocaleString() }}
             </span>
           </div>
@@ -226,7 +233,7 @@ onMounted(async () => {
             style="animation-delay: 340ms"
           >
             <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsAlcohol") }}</span>
-            <span class="ml-1.5 font-semibold accent-text">
+            <span :key="dbStats.sells_alcohol" class="stat-number ml-1.5 font-semibold accent-text">
               {{ dbStats.sells_alcohol.toLocaleString() }}
             </span>
           </div>
@@ -241,7 +248,11 @@ onMounted(async () => {
     </header>
 
     <main class="mx-auto max-w-6xl px-6 py-8">
-      <section class="surface-card animate-slide-up mb-8 p-6" style="animation-delay: 100ms">
+      <section
+        class="surface-card animate-slide-up mb-8 p-6"
+        :class="{ 'search-card-loading': loading }"
+        style="animation-delay: 100ms"
+      >
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <input
             v-model="searchQuery"
@@ -278,7 +289,7 @@ onMounted(async () => {
         </div>
 
         <div
-          class="mt-4 rounded-xl border border-brand-navy/10 bg-brand-sand/60 p-4 transition-colors duration-150 dark:border-white/10 dark:bg-brand-navy/40"
+          class="filter-panel mt-4 rounded-xl border border-brand-navy/10 bg-brand-sand/60 p-4 transition-colors duration-150 dark:border-white/10 dark:bg-brand-navy/40"
         >
           <div class="flex flex-wrap gap-x-6 gap-y-3">
             <label class="flex cursor-pointer items-center gap-2 text-sm">
@@ -328,7 +339,13 @@ onMounted(async () => {
         </div>
 
         <div class="mt-4 flex flex-wrap gap-3 animate-fade-up" style="animation-delay: 380ms">
-          <button type="button" class="btn-primary" :disabled="loading" @click="fetchLeads">
+          <button
+            type="button"
+            class="btn-primary"
+            :class="{ 'btn-primary-loading': loading }"
+            :disabled="loading"
+            @click="fetchLeads"
+          >
             <span
               v-if="loading"
               class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
@@ -340,13 +357,18 @@ onMounted(async () => {
           </button>
         </div>
 
-        <p v-if="error" class="mt-4 text-sm text-rose-600 dark:text-rose-300">{{ error }}</p>
-        <p v-else class="mt-4 text-sm text-brand-navy/70 dark:text-slate-300">
-          {{ resultsSummary }}
-          <span v-if="qualifiedInView > 0" class="ml-2 accent-text">
-            · {{ t("qualifiedInView", { count: String(qualifiedInView) }) }}
-          </span>
-        </p>
+        <p v-if="error" class="error-shake mt-4 text-sm text-rose-600 dark:text-rose-300">{{ error }}</p>
+        <Transition v-else name="summary" mode="out-in">
+          <p
+            :key="resultsSummary"
+            class="mt-4 text-sm text-brand-navy/70 dark:text-slate-300"
+          >
+            {{ resultsSummary }}
+            <span v-if="qualifiedInView > 0" class="ml-2 accent-text">
+              · {{ t("qualifiedInView", { count: String(qualifiedInView) }) }}
+            </span>
+          </p>
+        </Transition>
         <p class="mt-1 text-xs text-brand-navy/45 dark:text-slate-500">
           {{ t("filtersAuto") }}
           <code class="accent-link">python -m scripts.ingest_texas_data --limit 500</code>
@@ -354,7 +376,12 @@ onMounted(async () => {
       </section>
 
       <div v-if="loading && leads.length === 0" class="space-y-4">
-        <div v-for="n in 3" :key="n" class="skeleton h-36" />
+        <div
+          v-for="n in 3"
+          :key="n"
+          class="skeleton h-36 animate-fade-up"
+          :style="{ animationDelay: `${n * 80}ms` }"
+        />
       </div>
 
       <TransitionGroup v-else name="lead" tag="section" class="space-y-4">
@@ -379,16 +406,19 @@ onMounted(async () => {
               </p>
             </div>
             <div class="text-right">
-              <span v-if="lead.distance_miles !== null" class="badge-distance mb-2 block">
+              <span
+                v-if="lead.distance_miles !== null"
+                class="badge-distance badge-animate mb-2 block"
+              >
                 {{ lead.distance_miles }} mi
               </span>
               <span
                 v-if="lead.website_analysis_notes?.includes('TABC')"
-                class="badge mb-2 block bg-brand-copper/15 text-brand-copper dark:text-brand-copper-light"
+                class="badge-animate badge mb-2 block bg-brand-copper/15 text-brand-copper dark:text-brand-copper-light"
               >
                 TABC
               </span>
-              <span :class="lead.is_qualified ? 'badge-qualified' : 'badge-neutral'">
+              <span :class="lead.is_qualified ? 'badge-qualified' : 'badge-neutral badge-animate'">
                 {{ t("score") }} {{ lead.qualification_score }}
               </span>
             </div>
@@ -481,16 +511,44 @@ onMounted(async () => {
         </article>
       </TransitionGroup>
 
-      <p
+      <div
         v-if="!loading && leads.length === 0"
-        class="animate-fade-up py-16 text-center text-brand-navy/50 dark:text-slate-400"
+        class="empty-state animate-fade-up py-16 text-center text-brand-navy/50 dark:text-slate-400"
       >
-        {{ t("emptyLeads") }}
-      </p>
+        <svg
+          class="mx-auto mb-4 h-14 w-14 text-brand-teal/40 dark:text-brand-teal-light/40"
+          viewBox="0 0 48 48"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle
+            cx="20"
+            cy="20"
+            r="12"
+            stroke="currentColor"
+            stroke-width="2"
+            class="animate-spin-slow"
+            stroke-dasharray="4 6"
+          />
+          <path d="M30 30L40 40" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          <text
+            x="20"
+            y="24"
+            text-anchor="middle"
+            font-size="9"
+            font-weight="700"
+            fill="currentColor"
+          >
+            TX
+          </text>
+        </svg>
+        <p>{{ t("emptyLeads") }}</p>
+      </div>
 
       <nav
         v-if="filteredTotal > PAGE_SIZE"
-        class="mt-8 flex flex-wrap items-center justify-center gap-3"
+        :key="currentPage"
+        class="pagination-nav mt-8 flex flex-wrap items-center justify-center gap-3"
         :aria-label="t('pageOf', { page: String(currentPage), pages: String(totalPages) })"
       >
         <button
@@ -501,7 +559,7 @@ onMounted(async () => {
         >
           {{ t("prevPage") }}
         </button>
-        <span class="stat-pill text-sm">
+        <span :key="`page-${currentPage}`" class="stat-pill stat-number text-sm">
           {{ t("pageOf", { page: String(currentPage), pages: String(totalPages) }) }}
         </span>
         <button

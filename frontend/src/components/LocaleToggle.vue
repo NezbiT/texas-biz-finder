@@ -1,21 +1,24 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "../composables/useI18n";
 
 const { locale, setLocale, t } = useI18n();
+
+const pillStyle = computed(() => ({
+  left: locale.value === "en" ? "2px" : "calc(50% - 2px)",
+  width: "calc(50% - 2px)",
+}));
 </script>
 
 <template>
-  <div
-    class="flex items-center rounded-xl border border-brand-navy/10 bg-white p-0.5 dark:border-white/15 dark:bg-white/5"
-    role="group"
-    :aria-label="locale === 'en' ? 'Language' : 'Idioma'"
-  >
+  <div class="locale-toggle" role="group" :aria-label="locale === 'en' ? 'Language' : 'Idioma'">
+    <span class="locale-pill" :style="pillStyle" aria-hidden="true" />
     <button
       type="button"
-      class="rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all duration-100"
+      class="locale-btn"
       :class="
         locale === 'en'
-          ? 'bg-brand-copper text-white shadow-sm'
+          ? 'text-white'
           : 'text-brand-navy/60 hover:text-brand-navy dark:text-slate-400 dark:hover:text-slate-200'
       "
       :aria-label="t('langEn')"
@@ -26,10 +29,10 @@ const { locale, setLocale, t } = useI18n();
     </button>
     <button
       type="button"
-      class="rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all duration-100"
+      class="locale-btn"
       :class="
         locale === 'es'
-          ? 'bg-brand-copper text-white shadow-sm'
+          ? 'text-white'
           : 'text-brand-navy/60 hover:text-brand-navy dark:text-slate-400 dark:hover:text-slate-200'
       "
       :aria-label="t('langEs')"

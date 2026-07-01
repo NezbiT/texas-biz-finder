@@ -190,8 +190,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="research-panel">
-    <div class="flex flex-wrap items-start justify-between gap-3">
+  <section class="research-panel animate-slide-up">
+    <div class="flex flex-wrap items-start justify-between gap-3 animate-fade-up">
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.18em] accent-text">
           {{ t("researchTitle") }}
@@ -210,7 +210,7 @@ onMounted(async () => {
 
     <p
       v-if="analysisStatus.busy"
-      class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200"
+      class="busy-banner mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200"
     >
       <span class="inline-block h-2 w-2 animate-pulse-soft rounded-full bg-amber-500 align-middle" />
       {{ t("playwrightBusy") }}
@@ -218,7 +218,14 @@ onMounted(async () => {
     </p>
 
     <div class="mt-4 flex flex-wrap gap-2">
-      <button type="button" class="btn-primary" :disabled="searching" @click="searchWebsite">
+      <button
+        type="button"
+        class="btn-primary animate-fade-up"
+        style="animation-delay: 80ms"
+        :class="{ 'btn-primary-loading': searching }"
+        :disabled="searching"
+        @click="searchWebsite"
+      >
         {{ searching ? t("searchingDdg") : t("searchDdg") }}
       </button>
       <button
@@ -242,22 +249,21 @@ onMounted(async () => {
     <p v-if="searchQuery" class="mt-3 text-xs text-brand-navy/50 dark:text-slate-500">
       {{ t("queryLabel") }}: {{ searchQuery }}
     </p>
-    <p v-if="panelError" class="mt-3 text-sm text-rose-600 dark:text-rose-300">{{ panelError }}</p>
+    <p v-if="panelError" class="error-shake mt-3 text-sm text-rose-600 dark:text-rose-300">
+      {{ panelError }}
+    </p>
 
     <TransitionGroup v-if="searchResults.length" name="lead" tag="div" class="mt-4 space-y-2">
       <p key="label" class="text-sm font-medium text-brand-navy dark:text-slate-200">
         {{ t("resultsLabel") }}
       </p>
       <button
-        v-for="result in searchResults"
+        v-for="(result, index) in searchResults"
         :key="result.url"
         type="button"
-        class="block w-full rounded-xl border px-4 py-3 text-left transition-all duration-100"
-        :class="
-          selectedUrl === result.url
-            ? 'border-brand-copper bg-brand-copper/10 shadow-sm dark:border-brand-copper-light'
-            : 'border-brand-navy/10 bg-white hover:border-brand-teal/40 dark:border-white/10 dark:bg-brand-navy/50'
-        "
+        class="research-result-btn animate-fade-up"
+        :class="{ selected: selectedUrl === result.url }"
+        :style="{ animationDelay: `${index * 60}ms` }"
         @click="selectResult(result)"
       >
         <p class="font-medium text-brand-navy dark:text-white">{{ result.title }}</p>
