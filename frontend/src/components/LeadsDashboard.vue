@@ -188,26 +188,33 @@ onMounted(async () => {
 
 <template>
   <div class="page-shell">
+    <div class="page-content">
     <header class="app-header">
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-        <div class="flex items-center gap-3 animate-fade-up">
+        <div class="flex items-center gap-3 animate-slide-up" style="animation-delay: 0ms">
           <AppLogo size="md" />
           <div>
-            <p class="text-[0.65rem] font-semibold uppercase tracking-[0.22em] accent-text">
+            <p
+              class="animate-fade-in text-[0.65rem] font-semibold uppercase tracking-[0.22em] accent-text"
+              style="animation-delay: 120ms"
+            >
               {{ t("tagline") }}
             </p>
-            <h1 class="font-display text-2xl font-bold tracking-tight text-brand-navy dark:text-white">
+            <h1
+              class="animate-fade-up font-display text-2xl font-bold tracking-tight text-brand-navy dark:text-white"
+              style="animation-delay: 180ms"
+            >
               {{ t("appName") }}
             </h1>
           </div>
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
-          <div class="stat-pill hidden sm:block">
+          <div class="stat-pill animate-stat-pop hidden sm:block" style="animation-delay: 220ms">
             <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsTexas") }}</span>
             <span class="ml-1.5 font-semibold">{{ dbStats.total.toLocaleString() }}</span>
           </div>
-          <div class="stat-pill hidden md:block">
+          <div class="stat-pill animate-stat-pop hidden md:block" style="animation-delay: 280ms">
             <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsQualified") }}</span>
             <span class="ml-1.5 font-semibold text-brand-teal dark:text-brand-teal-light">
               {{ dbStats.qualified.toLocaleString() }}
@@ -215,41 +222,52 @@ onMounted(async () => {
           </div>
           <div
             v-if="dbStats.sells_alcohol > 0"
-            class="stat-pill hidden lg:block"
+            class="stat-pill animate-stat-pop hidden lg:block"
+            style="animation-delay: 340ms"
           >
             <span class="text-brand-navy/60 dark:text-slate-400">{{ t("statsAlcohol") }}</span>
             <span class="ml-1.5 font-semibold accent-text">
               {{ dbStats.sells_alcohol.toLocaleString() }}
             </span>
           </div>
-          <LocaleToggle />
-          <ThemeToggle />
+          <div class="animate-fade-in" style="animation-delay: 400ms">
+            <LocaleToggle />
+          </div>
+          <div class="animate-fade-in" style="animation-delay: 450ms">
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </header>
 
     <main class="mx-auto max-w-6xl px-6 py-8">
-      <section class="surface-card mb-8 animate-fade-up p-6" style="animation-delay: 30ms">
+      <section class="surface-card animate-slide-up mb-8 p-6" style="animation-delay: 100ms">
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <input
             v-model="searchQuery"
             type="search"
             :placeholder="t('searchPlaceholder')"
-            class="input-field"
+            class="input-field animate-fade-up"
+            style="animation-delay: 160ms"
           />
           <input
             v-model="locationFilter"
             type="text"
             :placeholder="t('locationPlaceholder')"
-            class="input-field"
+            class="input-field animate-fade-up"
+            style="animation-delay: 210ms"
           />
           <input
             v-model="industryFilter"
             type="text"
             :placeholder="t('industryPlaceholder')"
-            class="input-field"
+            class="input-field animate-fade-up"
+            style="animation-delay: 260ms"
           />
-          <label class="input-field flex cursor-pointer items-center gap-2">
+          <label
+            class="input-field animate-fade-up flex cursor-pointer items-center gap-2"
+            style="animation-delay: 310ms"
+          >
             <input
               v-model="qualifiedOnly"
               type="checkbox"
@@ -309,7 +327,7 @@ onMounted(async () => {
           </p>
         </div>
 
-        <div class="mt-4 flex flex-wrap gap-3">
+        <div class="mt-4 flex flex-wrap gap-3 animate-fade-up" style="animation-delay: 380ms">
           <button type="button" class="btn-primary" :disabled="loading" @click="fetchLeads">
             <span
               v-if="loading"
@@ -340,7 +358,12 @@ onMounted(async () => {
       </div>
 
       <TransitionGroup v-else name="lead" tag="section" class="space-y-4">
-        <article v-for="lead in leads" :key="lead.id" class="lead-card">
+        <article
+          v-for="(lead, index) in leads"
+          :key="lead.id"
+          class="lead-card lead-card-stagger"
+          :style="{ animationDelay: `${Math.min(index * 45, 500)}ms` }"
+        >
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 class="text-lg font-semibold text-brand-navy dark:text-white">
@@ -491,5 +514,6 @@ onMounted(async () => {
         </button>
       </nav>
     </main>
+    </div>
   </div>
 </template>

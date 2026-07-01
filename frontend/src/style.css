@@ -17,22 +17,59 @@
 
 @layer components {
   .page-shell {
-    @apply min-h-screen bg-hero-light dark:bg-hero-dark;
+    @apply relative min-h-screen overflow-x-hidden bg-hero-light dark:bg-hero-dark;
     transition: background 0.15s ease-out;
   }
 
+  .page-shell::before,
+  .page-shell::after {
+    content: "";
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(72px);
+    pointer-events: none;
+    z-index: 0;
+    animation: blob-drift 18s ease-in-out infinite;
+  }
+
+  .page-shell::before {
+    width: 28rem;
+    height: 28rem;
+    top: -8rem;
+    right: -5rem;
+    background: rgba(42, 157, 143, 0.22);
+  }
+
+  .page-shell::after {
+    width: 24rem;
+    height: 24rem;
+    bottom: -6rem;
+    left: -4rem;
+    background: rgba(200, 121, 65, 0.18);
+    animation-delay: -9s;
+  }
+
+  .page-content {
+    @apply relative z-10;
+  }
+
   .bg-hero-light {
-    background: linear-gradient(145deg, #f8f6f2 0%, #eef4f3 42%, #fde8d4 100%);
+    background: linear-gradient(135deg, #f8f6f2 0%, #eef4f3 38%, #fde8d4 72%, #f8f6f2 100%);
+    background-size: 200% 200%;
+    animation: gradient-shift 14s ease-in-out infinite;
   }
 
   .bg-hero-dark {
-    background: linear-gradient(145deg, #0c1222 0%, #1a2744 48%, #1e3d3a 100%);
+    background: linear-gradient(135deg, #0c1222 0%, #1a2744 40%, #1e3d3a 72%, #0c1222 100%);
+    background-size: 200% 200%;
+    animation: gradient-shift 14s ease-in-out infinite;
   }
 
   .app-header {
     @apply sticky top-0 z-40 border-b backdrop-blur-md;
     @apply border-brand-navy/10 bg-white/75 dark:border-white/10 dark:bg-brand-navy/80;
     transition: background-color 0.15s ease-out, border-color 0.15s ease-out;
+    animation: slideDown 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .surface-card {
@@ -47,7 +84,13 @@
 
   .lead-card {
     @apply surface-card p-5 backdrop-blur-sm;
-    @apply hover:-translate-y-px hover:border-brand-copper/30 dark:hover:border-brand-teal/40;
+    @apply hover:-translate-y-1 hover:border-brand-copper/30 dark:hover:border-brand-teal/40;
+    transition: box-shadow 0.2s ease-out, border-color 0.2s ease-out,
+      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .lead-card-stagger {
+    animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .input-field {
@@ -101,7 +144,11 @@
   .stat-pill {
     @apply rounded-full px-4 py-2 text-sm font-medium;
     @apply bg-brand-navy/5 text-brand-navy dark:bg-white/10 dark:text-slate-200;
-    transition: background-color 0.15s ease-out, color 0.15s ease-out;
+    transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.2s ease-out;
+  }
+
+  .stat-pill:hover {
+    transform: translateY(-1px) scale(1.02);
   }
 
   .theme-toggle {
@@ -133,10 +180,32 @@
 }
 
 /* Smooth, GPU-friendly transitions */
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .lead-enter-active,
 .panel-enter-active {
-  transition: opacity 0.14s cubic-bezier(0.33, 1, 0.68, 1),
-    transform 0.14s cubic-bezier(0.33, 1, 0.68, 1);
+  transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: opacity, transform;
 }
 
@@ -150,7 +219,7 @@
 .lead-enter-from,
 .panel-enter-from {
   opacity: 0;
-  transform: translate3d(0, 4px, 0) scale(0.995);
+  transform: translate3d(0, 14px, 0) scale(0.97);
 }
 
 .lead-leave-to,
@@ -172,4 +241,18 @@
 .theme-icon-leave-to {
   opacity: 0;
   transform: rotate(-12deg) scale(0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-shell::before,
+  .page-shell::after,
+  .bg-hero-light,
+  .bg-hero-dark,
+  .app-header {
+    animation: none !important;
+  }
+
+  .lead-card-stagger {
+    animation: none !important;
+  }
 }

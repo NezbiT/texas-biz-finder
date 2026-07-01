@@ -1,5 +1,5 @@
 export const en = {
-  tagline: "txbizfinder.com",
+  tagline: "Search Texas businesses",
   appName: "TX BizFinder",
   statsTexas: "Texas businesses",
   statsQualified: "Qualified",
