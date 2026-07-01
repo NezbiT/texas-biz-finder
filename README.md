@@ -133,14 +133,40 @@ npm run dev
 
 ## Cloudflare / dominio
 
-Dominio configurado: **www.txbizfinder.com**
+Dominio: **www.txbizfinder.com** (cuenta Cloudflare)
 
-Cuando despliegues en un VPS:
+### Opción A — Tunnel desde tu PC (sin VPS, costo ~$0)
+
+Expone tu instancia local con HTTPS y PWA instalable. Ideal mientras el DuckDB vive en tu máquina.
+
+**Requisitos:** dominio `txbizfinder.com` en Cloudflare, `cloudflared` instalado.
+
+```powershell
+# 1) Instalar cloudflared (una vez)
+winget install Cloudflare.cloudflared
+
+# 2) Configurar tunnel (una vez; abre el navegador para login)
+.\scripts\setup-cloudflare-tunnel.ps1
+
+# 3) Arrancar prod + tunnel (cada vez que quieras publicar)
+.\start-cloudflare.ps1
+# o reconstruir frontend antes:
+.\start-cloudflare.ps1 -Rebuild
+```
+
+En el dashboard Cloudflare:
+
+- **SSL/TLS** → Full (strict)
+- **Rules** → redirect opcional `txbizfinder.com` → `https://www.txbizfinder.com`
+
+La PC debe permanecer encendida con el script en ejecución.
+
+### Opción B — VPS (siempre encendido)
 
 1. `python run.py --prod --build` en el servidor
 2. Cloudflare DNS → IP del VPS (proxy naranja ON)
-3. SSL: Full (strict) en Cloudflare
-4. Opcional: redirect `txbizfinder.com` → `www.txbizfinder.com`
+3. SSL: Full (strict)
+4. Sube `data/processed/texas_leads.duckdb` al servidor
 
 ## Pipeline masivo (3.36M negocios)
 

@@ -28,6 +28,9 @@ data/*
 .vscode/
 *.swp
 
+# Cloudflare Tunnel (generated locally per machine)
+deploy/cloudflare/config.yml
+
 # OS
 .DS_Store
 Thumbs.db
