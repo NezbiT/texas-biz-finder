@@ -9,6 +9,7 @@ venv/
 # Node
 node_modules/
 dist/
+dev-dist/
 *.local
 
 # Data (generated at runtime; keep geo reference)

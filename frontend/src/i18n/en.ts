@@ -76,6 +76,11 @@ export const en = {
   swipeHint: "Swipe left or right to change pages",
   dockMatches: "matches",
   scrollTop: "Back to top",
+  pwaInstallTitle: "Install TX BizFinder",
+  pwaInstallBody: "Add to your home screen for a fast, app-like experience.",
+  pwaInstallBtn: "Install",
+  pwaInstallDismiss: "Not now",
+  pwaIosHint: "Tap Share ↑ then “Add to Home Screen” to install.",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -78,4 +78,9 @@ export const es: Record<MessageKey, string> = {
   swipeHint: "Desliza izquierda o derecha para cambiar de página",
   dockMatches: "resultados",
   scrollTop: "Volver arriba",
+  pwaInstallTitle: "Instalar TX BizFinder",
+  pwaInstallBody: "Añade a tu pantalla de inicio para una experiencia tipo app.",
+  pwaInstallBtn: "Instalar",
+  pwaInstallDismiss: "Ahora no",
+  pwaIosHint: "Toca Compartir ↑ y luego “Añadir a pantalla de inicio”.",
 };

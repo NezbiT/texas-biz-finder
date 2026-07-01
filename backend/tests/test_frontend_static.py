@@ -41,3 +41,16 @@ def test_mobile_styles_and_sheet() -> None:
     assert "mobile-dock" in styles
     assert "sheet-panel" in styles
     assert "safe-area-inset" in styles
+
+
+def test_pwa_assets_and_config() -> None:
+    public = FRONTEND / "public"
+    assert (public / "pwa-192.png").exists()
+    assert (public / "pwa-512.png").exists()
+    assert (public / "apple-touch-icon.png").exists()
+    vite = (FRONTEND / "vite.config.ts").read_text(encoding="utf-8")
+    assert "VitePWA" in vite
+    assert "TX BizFinder" in vite
+    html = (FRONTEND / "index.html").read_text(encoding="utf-8")
+    assert "manifest.webmanifest" in html
+    assert "apple-touch-icon" in html
