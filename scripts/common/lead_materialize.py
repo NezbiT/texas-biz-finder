@@ -63,4 +63,18 @@ def materialize_processed_database(csv_path: Path, db_path: Path) -> None:
         FROM read_csv_auto('{csv_sql}', header=true, all_varchar=true)
         """
     )
+    _create_lead_indexes(conn)
     conn.close()
+
+
+def _create_lead_indexes(conn: duckdb.DuckDBPyConnection) -> None:
+    """Speed up common API filters and sort order."""
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_qualified ON leads(is_qualified)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_small_biz ON leads(is_small_business)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_sells_alcohol ON leads(sells_alcohol)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_zip ON leads(zip_code)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_city ON leads(city)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_leads_score ON leads("
+        "qualification_score, total_receipts_total, name)"
+    )

@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     beverage_csv_path: Path = Path("data/raw/mixed_beverage_receipts.csv")
     processed_csv_path: Path = Path("data/processed/texas_leads_processed.csv")
     processed_duckdb_path: Path = Path("data/processed/texas_leads.duckdb")
+    serve_frontend: bool = False
+    frontend_dist_path: Path = Path("frontend/dist")
 
     @property
     def use_csv_backend(self) -> bool:

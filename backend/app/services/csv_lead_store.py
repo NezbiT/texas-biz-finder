@@ -15,7 +15,10 @@ from backend.app.config import settings
 from backend.app.schemas.lead import LeadRead, LeadSearchPage, LeadSearchParams
 
 STATS_CACHE_TTL_SECONDS = 300
+COUNT_CACHE_TTL_SECONDS = 600
 _stats_cache: dict[str, Any] = {"loaded_at": 0.0, "data": None, "signature": ""}
+_count_cache: dict[str, tuple[float, int]] = {}
+_count_cache_signature: str = ""
 
 
 def _sql_path(path: Path) -> str:
@@ -43,6 +46,38 @@ def close_connection() -> None:
     if _duckdb_conn is not None:
         _duckdb_conn.close()
         _duckdb_conn = None
+    _invalidate_count_cache()
+
+
+def _invalidate_count_cache() -> None:
+    global _count_cache_signature
+    _count_cache.clear()
+    _count_cache_signature = ""
+
+
+def _count_cache_key(where_sql: str, values: list[Any]) -> str:
+    return f"{where_sql}|{values!r}"
+
+
+def _get_cached_count(cache_key: str, signature: str) -> int | None:
+    global _count_cache_signature
+    if _count_cache_signature != signature:
+        _invalidate_count_cache()
+        _count_cache_signature = signature
+
+    entry = _count_cache.get(cache_key)
+    if entry is None:
+        return None
+
+    loaded_at, total = entry
+    if time.monotonic() - loaded_at >= COUNT_CACHE_TTL_SECONDS:
+        _count_cache.pop(cache_key, None)
+        return None
+    return total
+
+
+def _set_cached_count(cache_key: str, total: int) -> None:
+    _count_cache[cache_key] = (time.monotonic(), total)
 
 
 def _connection() -> duckdb.DuckDBPyConnection:
@@ -257,7 +292,14 @@ def search_leads_page(params: LeadSearchParams) -> LeadSearchPage:
     base = f"FROM {source}"
     where_sql, values = _build_where(params)
 
-    total = conn.execute(f"SELECT COUNT(*) {base} {where_sql}", values).fetchone()[0]
+    signature = _file_signature()
+    cache_key = _count_cache_key(where_sql, values)
+    cached_total = _get_cached_count(cache_key, signature)
+    if cached_total is not None:
+        total = cached_total
+    else:
+        total = conn.execute(f"SELECT COUNT(*) {base} {where_sql}", values).fetchone()[0]
+        _set_cached_count(cache_key, int(total))
     rows = conn.execute(
         f"""
         SELECT *
