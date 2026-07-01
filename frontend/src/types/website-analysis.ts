@@ -1,7 +1,20 @@
+export interface WaybackInfo {
+  domain: string;
+  first_seen: string | null;
+  last_seen: string | null;
+  snapshot_count: number;
+  age_years: number | null;
+  timeline_url: string;
+  first_snapshot_url: string | null;
+  last_snapshot_url: string | null;
+  available: boolean;
+}
+
 export interface WebsiteSearchResult {
   title: string;
   url: string;
   snippet: string;
+  wayback?: WaybackInfo | null;
 }
 
 export interface WebsiteSearchResponse {

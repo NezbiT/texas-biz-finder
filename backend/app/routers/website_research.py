@@ -12,10 +12,12 @@ from backend.app.core.auth import require_admin
 from backend.app.database import get_session
 from backend.app.schemas.website_analysis import (
     AnalysisStatusResponse,
+    WaybackInfo,
     WebsiteAnalysisRead,
     WebsiteAnalyzeRequest,
     WebsiteSearchRequest,
     WebsiteSearchResponse,
+    WebsiteSearchResult,
     WebsiteUrlUpdateRequest,
 )
 from backend.app.services.analysis_lock import analysis_lock
@@ -23,6 +25,7 @@ from backend.app.services.duckduckgo_search import search_business_website
 from backend.app.services.lead_research_resolver import lead_name_and_city, resolve_lead_for_research
 from backend.app.services.playwright_analyzer import analyze_url_with_playwright
 from backend.app.services.report_generator import generate_analysis_report
+from backend.app.services.wayback_lookup import enrich_urls_with_wayback, lookup_wayback, wayback_to_dict
 from backend.app.services.website_analysis_store import (
     analysis_to_read,
     apply_analysis_to_lead,
@@ -32,6 +35,43 @@ from backend.app.services.website_analysis_store import (
 from backend.app.config import settings
 
 router = APIRouter(prefix="/api/leads", tags=["website-research"])
+
+
+def _wayback_info(url: str) -> WaybackInfo | None:
+    history = lookup_wayback(url)
+    if history is None:
+        return None
+    return WaybackInfo(**wayback_to_dict(history))
+
+
+def _attach_wayback_to_results(results: list[WebsiteSearchResult]) -> list[WebsiteSearchResult]:
+    if not results:
+        return results
+    histories = enrich_urls_with_wayback([r.url for r in results])
+    enriched: list[WebsiteSearchResult] = []
+    for item in results:
+        history = histories.get(item.url)
+        wayback = WaybackInfo(**wayback_to_dict(history)) if history else None
+        enriched.append(item.model_copy(update={"wayback": wayback}))
+    return enriched
+
+
+@router.get("/website-wayback", response_model=WaybackInfo)
+def website_wayback_history(
+    url: str,
+    _: str = Depends(require_admin),
+) -> WaybackInfo:
+    """Internet Archive timeline for a URL (first seen, last update, age)."""
+    target = url.strip()
+    if not target:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL is required")
+    info = _wayback_info(target)
+    if info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Could not resolve domain for Wayback lookup",
+        )
+    return info
 
 
 @router.get("/website-research/status", response_model=AnalysisStatusResponse)
@@ -74,6 +114,7 @@ def search_lead_website(
             detail=str(exc),
         ) from exc
 
+    results = _attach_wayback_to_results(results)
     return WebsiteSearchResponse(query=query, results=results)
 
 
@@ -109,6 +150,19 @@ async def analyze_lead_website(
             navigation_timeout_ms=settings.playwright_nav_timeout_ms,
             total_timeout_ms=settings.playwright_timeout_ms,
         )
+        wayback = lookup_wayback(url)
+        if wayback:
+            result.metrics["wayback"] = wayback_to_dict(wayback)
+            if wayback.age_years is not None and result.metrics.get("estimated_antiquity_years") is None:
+                result.metrics["estimated_antiquity_years"] = wayback.age_years
+            if wayback.available and result.summary:
+                age_note = (
+                    f" Wayback Machine: first capture {wayback.first_seen}, "
+                    f"last {wayback.last_seen} (~{wayback.snapshot_count} snapshots)."
+                )
+                if age_note.strip() not in result.summary:
+                    result.summary = (result.summary + age_note).strip()
+
         record = save_analysis(session, lead_id=lead.id or lead_id, result=result)
         if body.save_to_lead and result.status == "completed":
             apply_analysis_to_lead(session, lead, result)

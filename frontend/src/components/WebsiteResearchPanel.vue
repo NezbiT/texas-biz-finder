@@ -4,6 +4,7 @@ import { useI18n } from "../composables/useI18n";
 import type { Lead } from "../types/lead";
 import type {
   AnalysisStatus,
+  WaybackInfo,
   WebsiteAnalysis,
   WebsiteSearchResult,
 } from "../types/website-analysis";
@@ -31,7 +32,10 @@ const searching = ref(false);
 const analyzing = ref(false);
 const savingUrl = ref(false);
 const loadingHistory = ref(false);
+const loadingWayback = ref(false);
+const waybackDraft = ref<WaybackInfo | null>(null);
 const panelError = ref<string | null>(null);
+let waybackTimer: ReturnType<typeof setTimeout> | null = null;
 
 const activeUrl = computed(() => urlDraft.value.trim());
 
@@ -102,6 +106,36 @@ async function searchWebsite(): Promise<void> {
 
 function selectResult(result: WebsiteSearchResult): void {
   urlDraft.value = result.url;
+  waybackDraft.value = result.wayback ?? null;
+}
+
+async function fetchWaybackForUrl(url: string): Promise<void> {
+  const target = url.trim();
+  if (!target) {
+    waybackDraft.value = null;
+    return;
+  }
+  loadingWayback.value = true;
+  try {
+    const response = await fetch(
+      `/api/leads/website-wayback?url=${encodeURIComponent(target)}`,
+      { headers: headers.value },
+    );
+    if (response.ok) {
+      waybackDraft.value = (await response.json()) as WaybackInfo;
+    } else {
+      waybackDraft.value = null;
+    }
+  } catch {
+    waybackDraft.value = null;
+  } finally {
+    loadingWayback.value = false;
+  }
+}
+
+function formatWaybackAge(info: WaybackInfo): string | null {
+  if (info.age_years == null) return null;
+  return t("waybackYears", { years: String(info.age_years) });
 }
 
 async function saveUrlOnly(): Promise<void> {
@@ -181,14 +215,32 @@ watch(
   () => props.lead.id,
   async () => {
     urlDraft.value = props.lead.website_url ?? "";
+    waybackDraft.value = null;
     searchResults.value = [];
     searchQuery.value = "";
     panelError.value = null;
     await loadHistory();
     await refreshStatus();
+    if (urlDraft.value.trim()) {
+      void fetchWaybackForUrl(urlDraft.value);
+    }
   },
   { immediate: true },
 );
+
+watch(urlDraft, (value) => {
+  if (waybackTimer) clearTimeout(waybackTimer);
+  const match = searchResults.value.find(
+    (r) => normalizeUrl(r.url) === normalizeUrl(value),
+  );
+  if (match?.wayback) {
+    waybackDraft.value = match.wayback;
+    return;
+  }
+  waybackTimer = setTimeout(() => {
+    void fetchWaybackForUrl(value);
+  }, 450);
+});
 
 onMounted(async () => {
   await refreshStatus();
@@ -259,6 +311,15 @@ onMounted(async () => {
         <p class="font-medium text-brand-navy dark:text-white">{{ result.title }}</p>
         <p class="text-xs accent-link">{{ result.url }}</p>
         <p class="mt-1 text-sm text-brand-navy/60 dark:text-slate-400">{{ result.snippet }}</p>
+        <p
+          v-if="result.wayback?.available"
+          class="mt-2 text-xs text-brand-teal dark:text-brand-teal-light"
+        >
+          {{ t("waybackFirstSeen") }}: {{ result.wayback.first_seen }}
+          <span v-if="result.wayback.age_years != null">
+            · {{ formatWaybackAge(result.wayback) }}
+          </span>
+        </p>
       </button>
     </TransitionGroup>
 
@@ -278,6 +339,61 @@ onMounted(async () => {
         autocomplete="url"
         inputmode="url"
       />
+    </div>
+
+    <div
+      v-if="activeUrl && (loadingWayback || waybackDraft)"
+      class="mt-4 rounded-xl border border-brand-navy/10 bg-white/70 p-4 dark:border-white/10 dark:bg-brand-navy/40"
+    >
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-brand-teal">
+        {{ t("waybackTitle") }}
+      </p>
+      <p v-if="loadingWayback" class="mt-2 text-sm text-brand-navy/60 dark:text-slate-400">
+        {{ t("waybackLoading") }}
+      </p>
+      <template v-else-if="waybackDraft">
+        <p v-if="!waybackDraft.available" class="mt-2 text-sm text-brand-navy/60 dark:text-slate-400">
+          {{ t("waybackNone") }}
+        </p>
+        <template v-else>
+          <div class="mt-3 grid gap-2 text-sm text-brand-navy/75 dark:text-slate-300 sm:grid-cols-2">
+            <p>{{ t("waybackFirstSeen") }}: {{ waybackDraft.first_seen ?? "—" }}</p>
+            <p>{{ t("waybackLastSeen") }}: {{ waybackDraft.last_seen ?? "—" }}</p>
+            <p>{{ t("waybackSnapshots") }}: {{ waybackDraft.snapshot_count.toLocaleString() }}</p>
+            <p v-if="formatWaybackAge(waybackDraft)">
+              {{ t("waybackAge") }}: {{ formatWaybackAge(waybackDraft) }}
+            </p>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-3 text-xs">
+            <a
+              :href="waybackDraft.timeline_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="accent-link"
+            >
+              {{ t("waybackTimeline") }}
+            </a>
+            <a
+              v-if="waybackDraft.first_snapshot_url"
+              :href="waybackDraft.first_snapshot_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="accent-link"
+            >
+              {{ t("waybackFirstLink") }}
+            </a>
+            <a
+              v-if="waybackDraft.last_snapshot_url"
+              :href="waybackDraft.last_snapshot_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="accent-link"
+            >
+              {{ t("waybackLastLink") }}
+            </a>
+          </div>
+        </template>
+      </template>
     </div>
 
     <div class="mt-4 flex flex-wrap gap-2">
@@ -331,6 +447,16 @@ onMounted(async () => {
           </p>
           <p>{{ t("titleSeo") }}: {{ latestAnalysis.seo_title ?? "—" }}</p>
           <p>H1: {{ latestAnalysis.seo_h1 ?? "—" }}</p>
+          <template v-if="latestAnalysis.metrics?.wayback">
+            <p>
+              {{ t("waybackFirstSeen") }}:
+              {{ (latestAnalysis.metrics.wayback as WaybackInfo).first_seen ?? "—" }}
+            </p>
+            <p>
+              {{ t("waybackLastSeen") }}:
+              {{ (latestAnalysis.metrics.wayback as WaybackInfo).last_seen ?? "—" }}
+            </p>
+          </template>
         </div>
         <p v-if="latestAnalysis.technologies.length" class="mt-2 text-sm accent-text">
           {{ t("stack") }}: {{ latestAnalysis.technologies.join(", ") }}
