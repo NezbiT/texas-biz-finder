@@ -47,7 +47,7 @@ def generate_analysis_report(lead: Lead, analysis: WebsiteAnalysis) -> str:
   </style>
 </head>
 <body>
-  <p class="muted">TexasBizFinder · Generated {html.escape(created)}</p>
+  <p class="muted">TX BizFinder · txbizfinder.com · Generated {html.escape(created)}</p>
   <h1>Website Analysis Report</h1>
   <div class="card">
     <h2>Business</h2>

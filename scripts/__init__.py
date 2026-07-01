@@ -1,1 +1,1 @@
-"""TexasBizFinder data ingestion and lead processing scripts."""
+"""TX BizFinder data ingestion and lead processing scripts."""

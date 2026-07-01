@@ -8,7 +8,8 @@ const catalogs = { en, es } as const;
 
 function readStoredLocale(): Locale {
   try {
-    return localStorage.getItem("tbf-locale") === "es" ? "es" : "en";
+    const stored = localStorage.getItem("txbf-locale") || localStorage.getItem("tbf-locale");
+    return stored === "es" ? "es" : "en";
   } catch {
     return "en";
   }
@@ -20,7 +21,7 @@ function applyLocale(next: Locale): void {
   locale.value = next;
   document.documentElement.lang = next;
   try {
-    localStorage.setItem("tbf-locale", next);
+    localStorage.setItem("txbf-locale", next);
   } catch {
     /* private browsing */
   }

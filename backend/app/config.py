@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
-    app_name: str = "TexasBizFinder"
+    app_name: str = "TX BizFinder"
     database_url: str = "sqlite:///data/texasbizfinder.db"
     admin_api_key: str = "admin-dev-key-change-me"
     max_employees_small_biz: int = 50

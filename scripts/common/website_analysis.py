@@ -298,7 +298,7 @@ def analyze_website(
             _ensure_scheme(url),
             timeout=timeout,
             follow_redirects=True,
-            headers={"User-Agent": "TexasBizFinder/1.0 (+local lead research)"},
+            headers={"User-Agent": "TXBizFinder/3.0 (+https://www.txbizfinder.com)"},
         )
         if response.status_code >= 400:
             fallback = analyze_website_url_only(url)

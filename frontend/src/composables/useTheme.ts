@@ -8,12 +8,12 @@ function applyTheme(mode: ThemeMode): void {
   theme.value = mode;
   document.documentElement.classList.toggle("dark", mode === "dark");
   document.documentElement.style.colorScheme = mode;
-  localStorage.setItem("tbf-theme", mode);
+  localStorage.setItem("txbf-theme", mode);
 }
 
 export function useTheme() {
   onMounted(() => {
-    const stored = localStorage.getItem("tbf-theme");
+    const stored = localStorage.getItem("txbf-theme") || localStorage.getItem("tbf-theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const initial: ThemeMode =
       stored === "light" || stored === "dark" ? stored : prefersDark ? "dark" : "light";

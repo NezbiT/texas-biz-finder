@@ -168,7 +168,7 @@ async def analyze_url_with_playwright(
             browser = await playwright.chromium.launch(headless=True)
             try:
                 context = await browser.new_context(
-                    user_agent="TexasBizFinder/2.0 (+local lead research)",
+                    user_agent="TXBizFinder/3.0 (+https://www.txbizfinder.com)",
                 )
                 page = await context.new_page()
                 page.set_default_timeout(total_timeout_ms)

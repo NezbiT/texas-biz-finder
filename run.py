@@ -70,7 +70,7 @@ def start_server(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run TexasBizFinder locally")
+    parser = argparse.ArgumentParser(description="Run TX BizFinder locally")
     parser.add_argument("--no-seed", action="store_true", help="Skip data ingest/seed")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)

@@ -1,1 +1,1 @@
-"""TexasBizFinder FastAPI backend."""
+"""TX BizFinder FastAPI backend."""

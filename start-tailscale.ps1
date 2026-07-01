@@ -1,4 +1,4 @@
-# TexasBizFinder — local + Tailscale (sin costo cloud)
+# TX BizFinder — local + Tailscale (sin costo cloud)
 # Uso: .\start-tailscale.ps1
 # Abre en otro dispositivo: http://<tu-ip-tailscale>:5173
 
@@ -8,7 +8,7 @@ $Node = "C:\Program Files\nodejs\node.exe"
 $Vite = Join-Path $Root "frontend\node_modules\vite\bin\vite.js"
 $Tailscale = "C:\Program Files\Tailscale\tailscale.exe"
 
-Write-Host "TexasBizFinder — modo Tailscale" -ForegroundColor Cyan
+Write-Host "TX BizFinder — modo Tailscale" -ForegroundColor Cyan
 Write-Host ""
 
 if (Test-Path $Tailscale) {

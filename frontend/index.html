@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark light" />
-    <title>TexasBizFinder</title>
+    <title>TX BizFinder — Texas Business Leads</title>
+    <meta name="description" content="Find and qualify Texas small businesses. TABC alcohol data, 500K+ leads. txbizfinder.com" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,11 +15,12 @@
     />
     <script>
       (function () {
-        var t = localStorage.getItem("tbf-theme");
+        var t = localStorage.getItem("txbf-theme") || localStorage.getItem("tbf-theme");
         var dark = t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.classList.toggle("dark", dark);
         document.documentElement.style.colorScheme = dark ? "dark" : "light";
-        document.documentElement.lang = localStorage.getItem("tbf-locale") === "es" ? "es" : "en";
+        var loc = localStorage.getItem("txbf-locale") || localStorage.getItem("tbf-locale");
+        document.documentElement.lang = loc === "es" ? "es" : "en";
       })();
     </script>
   </head>

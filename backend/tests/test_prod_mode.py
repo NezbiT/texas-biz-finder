@@ -83,7 +83,7 @@ def test_count_cache_reuses_total(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
 def prod_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     dist = tmp_path / "dist"
     dist.mkdir()
-    (dist / "index.html").write_text("<html><body>TexasBizFinder</body></html>", encoding="utf-8")
+    (dist / "index.html").write_text("<html><body>TX BizFinder</body></html>", encoding="utf-8")
     assets = dist / "assets"
     assets.mkdir()
     (assets / "app.js").write_text("console.log('ok');", encoding="utf-8")
@@ -103,7 +103,7 @@ def prod_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
 def test_prod_mode_serves_frontend(prod_client: TestClient) -> None:
     response = prod_client.get("/")
     assert response.status_code == 200
-    assert "TexasBizFinder" in response.text
+    assert "TX BizFinder" in response.text
 
     asset = prod_client.get("/assets/app.js")
     assert asset.status_code == 200

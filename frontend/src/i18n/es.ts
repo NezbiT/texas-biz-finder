@@ -1,8 +1,8 @@
 import type { MessageKey } from "./en";
 
 export const es: Record<MessageKey, string> = {
-  tagline: "Inteligencia de Leads en Texas",
-  appName: "TexasBizFinder",
+  tagline: "txbizfinder.com",
+  appName: "TX BizFinder",
   statsTexas: "Negocios en Texas",
   statsQualified: "Calificados",
   statsAlcohol: "Venden alcohol",

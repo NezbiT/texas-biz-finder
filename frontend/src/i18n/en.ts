@@ -1,6 +1,6 @@
 export const en = {
-  tagline: "Texas Lead Intelligence",
-  appName: "TexasBizFinder",
+  tagline: "txbizfinder.com",
+  appName: "TX BizFinder",
   statsTexas: "Texas businesses",
   statsQualified: "Qualified",
   statsAlcohol: "Sell alcohol",

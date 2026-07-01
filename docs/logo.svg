@@ -1,17 +1,24 @@
-<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TexasBizFinder">
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TX BizFinder">
   <defs>
-    <linearGradient id="tbf-ring" x1="8" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2a9d8f" />
-      <stop offset="1" stop-color="#c87941" />
+    <linearGradient id="txbf-bg" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#141f38"/>
+      <stop offset="0.55" stop-color="#1a2744"/>
+      <stop offset="1" stop-color="#1e4a42"/>
     </linearGradient>
-    <linearGradient id="tbf-star" x1="18" y1="14" x2="30" y2="34" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#e8a55c" />
-      <stop offset="1" stop-color="#c87941" />
+    <linearGradient id="txbf-accent" x1="24" y1="12" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3ecfb8"/>
+      <stop offset="1" stop-color="#e8a55c"/>
+    </linearGradient>
+    <linearGradient id="txbf-x" x1="26" y1="14" x2="38" y2="34" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8f6f2"/>
+      <stop offset="1" stop-color="#e8a55c"/>
     </linearGradient>
   </defs>
-  <circle cx="24" cy="24" r="21" stroke="url(#tbf-ring)" stroke-width="2.5" opacity="0.9" />
-  <circle cx="24" cy="24" r="14" stroke="#243352" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.35" />
-  <path d="M24 14.5L25.9 20.1H31.8L27 23.5L28.9 29.1L24 25.7L19.1 29.1L21 23.5L16.2 20.1H22.1L24 14.5Z" fill="url(#tbf-star)" />
-  <circle cx="35" cy="35" r="5.5" fill="#1a2744" stroke="#2a9d8f" stroke-width="1.5" />
-  <path d="M33.2 35h3.6M35 33.2v3.6" stroke="#e8f4f2" stroke-width="1.4" stroke-linecap="round" />
+  <rect x="3" y="3" width="42" height="42" rx="11" fill="url(#txbf-bg)"/>
+  <rect x="3.5" y="3.5" width="41" height="41" rx="10.5" stroke="#2a9d8f" stroke-opacity="0.35" stroke-width="1"/>
+  <path d="M11.5 13.5h9.5v2.8h-3.2v10.4h-3.1V16.3H11.5z" fill="#f8f6f2"/>
+  <path d="M25.8 13.5l3.4 5.6 3.4-5.6h3.1l-5.5 8.7 5.7 9h-3.1l-3.8-6.1-3.8 6.1h-3.1l5.7-9-5.5-8.7z" fill="url(#txbf-x)"/>
+  <circle cx="36.5" cy="36.5" r="6.5" stroke="url(#txbf-accent)" stroke-width="1.6" fill="none" opacity="0.9"/>
+  <circle cx="36.5" cy="36.5" r="2.2" fill="#2a9d8f"/>
+  <path d="M36.5 31.8v2.2M36.5 39v2.2M31.8 36.5h2.2M39 36.5h2.2" stroke="#2a9d8f" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>
 </svg>

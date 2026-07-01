@@ -1,18 +1,20 @@
 <p align="center">
-  <img src="docs/banner-v3.svg" alt="TexasBizFinder v3" width="920" />
+  <img src="docs/banner-v4.svg" alt="TX BizFinder" width="920" />
 </p>
 
 <p align="center">
-  <img src="docs/logo.svg" alt="TexasBizFinder logo" width="72" height="72" />
+  <img src="docs/logo.svg" alt="TX BizFinder logo" width="72" height="72" />
 </p>
 
-# TexasBizFinder v3
+# TX BizFinder
+
+**https://www.txbizfinder.com**
 
 Monorepo para encontrar y calificar **pequeños negocios en Texas** — con o sin sitio web moderno, presencia en redes, y venta de alcohol (TABC).
 
-**Stack:** DuckDB + CSV (bulk) · SQLite + SQLModel (legacy) · FastAPI · Vue 3 + TypeScript + Tailwind. Costo cero, todo local.
+**Stack:** DuckDB + CSV (bulk) · SQLite + SQLModel (legacy) · FastAPI · Vue 3 + TypeScript + Tailwind. Costo mínimo, local o VPS.
 
-> **v3** añade pipeline masivo (3.36M registros), cruce TABC, API paginada con DuckDB, UI bilingüe y acceso remoto vía Tailscale.
+> Pipeline masivo (3.36M registros), cruce TABC, API paginada con DuckDB, UI bilingüe EN/ES, modo prod de un solo puerto.
 
 ## Novedades recientes
 
@@ -22,7 +24,9 @@ Monorepo para encontrar y calificar **pequeños negocios en Texas** — con o si
 | **TABC / alcohol** | Cruce por `taxpayer_number` → `sells_alcohol`, receipts, segmento bar/restaurant |
 | **Lectura rápida** | CSV (archivo) + DuckDB (API) + JSON (stats) — sin escanear millones por request |
 | **Paginación** | 50 leads por página en UI y API (`limit` + `offset`) |
-| **UI** | Dark/light, logo Texas, i18n **EN** por defecto + toggle **ES** |
+| **UI** | Dark/light, logo TX BizFinder, i18n **EN** por defecto + toggle **ES** |
+| **Prod local** | `python run.py --prod` — API + frontend en un puerto |
+| **Dominio** | Cloudflare → `www.txbizfinder.com` |
 | **Filtros** | Calificados, industria, ciudad/ZIP, radio, **solo venden alcohol (TABC)** |
 | **Website research** | DuckDuckGo + Playwright por lead (1 análisis a la vez) |
 
@@ -37,9 +41,10 @@ Monorepo para encontrar y calificar **pequeños negocios en Texas** — con o si
 ## Estructura del proyecto
 
 ```
-TexasBizFinder/
+TexasBizFinder/                 # repo folder (interno)
 ├── docs/
-│   └── logo.svg                # Logo para README / docs
+│   ├── logo.svg                # Logo TX BizFinder
+│   └── banner-v4.svg           # README banner
 ├── backend/
 │   ├── app/
 │   │   ├── routers/
@@ -50,7 +55,7 @@ TexasBizFinder/
 │   │       ├── lead_search.py      # SQLite fallback
 │   │       ├── playwright_analyzer.py
 │   │       └── duckduckgo_search.py
-│   └── tests/                  # 38 tests
+│   └── tests/                  # 41 tests
 ├── frontend/
 │   └── src/
 │       ├── components/         # LeadsDashboard, AppLogo, LocaleToggle, ThemeToggle
@@ -97,7 +102,18 @@ Deja la app en tu PC y ábrela desde el celular u otra máquina en tu tailnet:
 # En el otro dispositivo: http://<tu-ip-tailscale>:5173
 ```
 
-## Arrancar (desarrollo)
+## Arrancar
+
+### Producción local (recomendado — un solo puerto)
+
+```bash
+python run.py --prod --build    # primera vez o si cambiaste UI
+python run.py --prod --no-seed  # uso diario
+```
+
+→ http://127.0.0.1:8000 (UI + API)
+
+### Desarrollo (hot reload UI)
 
 **Backend:**
 
@@ -105,19 +121,26 @@ Deja la app en tu PC y ábrela desde el celular u otra máquina en tu tailnet:
 python run.py --no-seed
 ```
 
-`--no-seed` evita re-ingestar el demo SQLite si ya tienes el bulk pipeline.
-
 **Frontend:**
 
 ```bash
 cd frontend
 npm run dev
-# Windows (PowerShell restrictivo):
-node .\node_modules\vite\bin\vite.js --host 127.0.0.1 --port 5173
 ```
 
 - UI: http://127.0.0.1:5173  
 - API: http://127.0.0.1:8000  
+
+## Cloudflare / dominio
+
+Dominio configurado: **www.txbizfinder.com**
+
+Cuando despliegues en un VPS:
+
+1. `python run.py --prod --build` en el servidor
+2. Cloudflare DNS → IP del VPS (proxy naranja ON)
+3. SSL: Full (strict) en Cloudflare
+4. Opcional: redirect `txbizfinder.com` → `www.txbizfinder.com`
 
 ## Pipeline masivo (3.36M negocios)
 
@@ -253,7 +276,7 @@ Score ejemplo: alcohol TABC = 0.85, keyword industria = 0.55, NAICS = 0.45.
 pytest backend/tests -q
 ```
 
-38 tests — API, bulk pipeline, website research, Playwright unit.
+41 tests — API, bulk pipeline, prod mode, website research, Playwright unit.
 
 ## Licencia
 

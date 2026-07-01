@@ -324,7 +324,7 @@ def cmd_process(franchise_csv: Path, beverage_csv: Path, processed_csv: Path) ->
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="TexasBizFinder bulk CSV pipeline")
+    parser = argparse.ArgumentParser(description="TX BizFinder bulk CSV pipeline")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_fr = sub.add_parser("download-franchise", help="Download all Active Franchise Taxpayers")
