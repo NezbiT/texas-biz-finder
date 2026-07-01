@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import AppLogo from "./AppLogo.vue";
+import MobileBottomDock from "./MobileBottomDock.vue";
+import MobileSheet from "./MobileSheet.vue";
 import PageParticles from "./PageParticles.vue";
 import LocaleToggle from "./LocaleToggle.vue";
 import ThemeToggle from "./ThemeToggle.vue";
 import WebsiteResearchPanel from "./WebsiteResearchPanel.vue";
 import { useI18n } from "../composables/useI18n";
+import { useScrollCompact } from "../composables/useScrollCompact";
+import { useTouchSwipe } from "../composables/useTouchSwipe";
 import type { LeadSearchPage } from "../types/lead-search";
 import type { Lead } from "../types/lead";
 
@@ -56,6 +60,24 @@ const resultsSummary = computed(() =>
 
 const canGoPrev = computed(() => currentPage.value > 1);
 const canGoNext = computed(() => currentPage.value < totalPages.value);
+
+const { compact: headerCompact } = useScrollCompact(56);
+
+const activeResearchLead = computed(
+  () => leads.value.find((lead) => lead.id === researchLeadId.value) ?? null,
+);
+
+const swipeEnabled = computed(() => filteredTotal.value > PAGE_SIZE && !loading.value);
+
+const showScrollTop = ref(false);
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function scrollToSearch() {
+  document.getElementById("search-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 function appendLocationParams(params: URLSearchParams): void {
   const location = locationFilter.value.trim();
@@ -145,6 +167,8 @@ function goNextPage(): void {
   if (canGoNext.value) goToPage(currentPage.value + 1);
 }
 
+const touchSwipe = useTouchSwipe(swipeEnabled, goNextPage, goPrevPage);
+
 function toggleResearch(leadId: number): void {
   researchLeadId.value = researchLeadId.value === leadId ? null : leadId;
 }
@@ -182,8 +206,18 @@ watch(
   },
 );
 
+function onWindowScroll() {
+  showScrollTop.value = window.scrollY > 320;
+}
+
 onMounted(async () => {
+  onWindowScroll();
+  window.addEventListener("scroll", onWindowScroll, { passive: true });
   await Promise.all([fetchStats(), fetchLeads()]);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("scroll", onWindowScroll);
 });
 </script>
 
@@ -191,19 +225,21 @@ onMounted(async () => {
   <div class="page-shell">
     <PageParticles />
     <div class="page-content">
-    <header class="app-header">
-      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-        <div class="flex items-center gap-3 animate-slide-up" style="animation-delay: 0ms">
-          <AppLogo size="md" />
-          <div>
+    <header class="app-header" :class="{ 'header-compact': headerCompact }">
+      <div
+        class="header-inner mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6"
+      >
+        <div class="flex min-w-0 items-center gap-3 animate-slide-up" style="animation-delay: 0ms">
+          <AppLogo :size="headerCompact ? 'sm' : 'md'" class="header-logo" />
+          <div class="min-w-0">
             <p
-              class="animate-fade-in text-[0.65rem] font-semibold uppercase tracking-[0.22em] accent-text"
+              class="header-tagline animate-fade-in text-[0.65rem] font-semibold uppercase tracking-[0.22em] accent-text"
               style="animation-delay: 120ms"
             >
               {{ t("tagline") }}
             </p>
             <h1
-              class="animate-fade-up font-display text-2xl font-bold tracking-tight text-brand-navy dark:text-white"
+              class="header-title animate-fade-up truncate font-display text-2xl font-bold tracking-tight text-brand-navy dark:text-white"
               style="animation-delay: 180ms"
             >
               {{ t("appName") }}
@@ -247,9 +283,22 @@ onMounted(async () => {
       </div>
     </header>
 
-    <main class="mx-auto max-w-6xl px-6 py-8">
+    <main
+      class="main-mobile-pad mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8"
+      @touchstart.passive="touchSwipe.onTouchStart"
+      @touchend.passive="touchSwipe.onTouchEnd"
+    >
+      <div
+        v-if="loading"
+        class="pull-indicator md:hidden"
+        aria-hidden="true"
+      >
+        <span class="pull-dot" />
+      </div>
+
       <section
-        class="surface-card animate-slide-up mb-8 p-6"
+        id="search-panel"
+        class="surface-card animate-slide-up mb-6 p-4 sm:mb-8 sm:p-6"
         :class="{ 'search-card-loading': loading }"
         style="animation-delay: 100ms"
       >
@@ -384,7 +433,17 @@ onMounted(async () => {
         />
       </div>
 
-      <TransitionGroup v-else name="lead" tag="section" class="space-y-4">
+      <template v-else-if="leads.length > 0">
+        <p
+          v-if="swipeEnabled"
+          class="swipe-hint mb-3 flex items-center justify-center gap-2 text-xs text-brand-navy/45 dark:text-slate-500 md:hidden"
+        >
+          <span class="swipe-chevron swipe-chevron-left" aria-hidden="true">‹</span>
+          {{ t("swipeHint") }}
+          <span class="swipe-chevron swipe-chevron-right" aria-hidden="true">›</span>
+        </p>
+
+        <TransitionGroup name="lead" tag="section" class="mobile-leads-stack space-y-4">
         <article
           v-for="(lead, index) in leads"
           :key="lead.id"
@@ -499,20 +558,22 @@ onMounted(async () => {
           </div>
 
           <Transition name="panel" mode="out-in">
-            <WebsiteResearchPanel
-              v-if="researchLeadId === lead.id"
-              :key="lead.id"
-              :lead="lead"
-              :api-key="API_KEY"
-              @saved="onResearchSaved"
-              @close="researchLeadId = null"
-            />
+            <div v-if="researchLeadId === lead.id" class="research-inline hidden md:block">
+              <WebsiteResearchPanel
+                :key="lead.id"
+                :lead="lead"
+                :api-key="API_KEY"
+                @saved="onResearchSaved"
+                @close="researchLeadId = null"
+              />
+            </div>
           </Transition>
         </article>
-      </TransitionGroup>
+        </TransitionGroup>
+      </template>
 
       <div
-        v-if="!loading && leads.length === 0"
+        v-else-if="!loading && leads.length === 0"
         class="empty-state animate-fade-up py-16 text-center text-brand-navy/50 dark:text-slate-400"
       >
         <svg
@@ -548,7 +609,7 @@ onMounted(async () => {
       <nav
         v-if="filteredTotal > PAGE_SIZE"
         :key="currentPage"
-        class="pagination-nav mt-8 flex flex-wrap items-center justify-center gap-3"
+        class="pagination-nav mt-8 hidden flex-wrap items-center justify-center gap-3 md:flex"
         :aria-label="t('pageOf', { page: String(currentPage), pages: String(totalPages) })"
       >
         <button
@@ -571,6 +632,42 @@ onMounted(async () => {
           {{ t("nextPage") }}
         </button>
       </nav>
+
+      <MobileBottomDock
+        v-if="filteredTotal > 0"
+        class="md:hidden"
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :can-prev="canGoPrev"
+        :can-next="canGoNext"
+        :loading="loading"
+        :filtered-total="filteredTotal"
+        @prev="goPrevPage"
+        @next="goNextPage"
+        @search="scrollToSearch"
+      />
+
+      <button
+        v-if="showScrollTop"
+        type="button"
+        class="scroll-fab md:hidden"
+        :aria-label="t('scrollTop')"
+        @click="scrollToTop"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+
+      <MobileSheet :open="activeResearchLead !== null" @close="researchLeadId = null">
+        <WebsiteResearchPanel
+          v-if="activeResearchLead"
+          :lead="activeResearchLead"
+          :api-key="API_KEY"
+          @saved="onResearchSaved"
+          @close="researchLeadId = null"
+        />
+      </MobileSheet>
     </main>
     </div>
   </div>

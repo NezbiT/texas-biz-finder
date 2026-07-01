@@ -75,4 +75,7 @@ export const es: Record<MessageKey, string> = {
   analysisBusy: "Hay otro análisis en curso. Espera a que termine.",
   playwrightConflict: "Playwright está ocupado. Inténtalo en un momento.",
   loadFailed: "Error al cargar leads",
+  swipeHint: "Desliza izquierda o derecha para cambiar de página",
+  dockMatches: "resultados",
+  scrollTop: "Volver arriba",
 };

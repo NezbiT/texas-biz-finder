@@ -73,6 +73,9 @@ export const en = {
   analysisBusy: "Another analysis is running. Wait for it to finish.",
   playwrightConflict: "Playwright is busy with another analysis. Try again shortly.",
   loadFailed: "Failed to load leads",
+  swipeHint: "Swipe left or right to change pages",
+  dockMatches: "matches",
+  scrollTop: "Back to top",
 } as const;
 
 export type MessageKey = keyof typeof en;

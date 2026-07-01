@@ -25,6 +25,8 @@ def test_main_component_has_texas_design_system() -> None:
     assert 't("exportCsv")' in component
     assert 't("searchLeads")' in component
     assert "PAGE_SIZE = 50" in component
+    assert "MobileBottomDock" in component
+    assert "useTouchSwipe" in component
 
 
 def test_tailwind_config_defines_brand_tokens() -> None:
@@ -32,3 +34,10 @@ def test_tailwind_config_defines_brand_tokens() -> None:
     assert "copper:" in config
     assert "teal:" in config
     assert "fade-up" in config
+
+
+def test_mobile_styles_and_sheet() -> None:
+    styles = (FRONTEND / "src" / "style.css").read_text(encoding="utf-8")
+    assert "mobile-dock" in styles
+    assert "sheet-panel" in styles
+    assert "safe-area-inset" in styles
