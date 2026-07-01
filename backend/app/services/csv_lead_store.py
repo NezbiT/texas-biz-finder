@@ -281,6 +281,21 @@ def _alcohol_notes(data: dict[str, Any]) -> str | None:
     )
 
 
+def get_lead_by_id(lead_id: int) -> LeadRead | None:
+    """Fetch one lead row from DuckDB by paginated API id."""
+    if not processed_data_ready():
+        return None
+
+    conn = _connection()
+    source = _leads_source()
+    rows = conn.execute(f"SELECT * FROM {source} WHERE id = ?", [lead_id])
+    row = rows.fetchone()
+    if row is None:
+        return None
+    columns = [col[0] for col in rows.description]
+    return _row_to_lead(row, columns)
+
+
 def search_leads_page(params: LeadSearchParams) -> LeadSearchPage:
     if not processed_data_ready():
         raise FileNotFoundError(

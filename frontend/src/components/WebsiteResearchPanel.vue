@@ -22,8 +22,7 @@ const { t } = useI18n();
 
 const searchQuery = ref("");
 const searchResults = ref<WebsiteSearchResult[]>([]);
-const selectedUrl = ref("");
-const customUrl = ref("");
+const urlDraft = ref("");
 const analyses = ref<WebsiteAnalysis[]>([]);
 const latestAnalysis = ref<WebsiteAnalysis | null>(null);
 const analysisStatus = ref<AnalysisStatus>({ busy: false, lead_id: null, url: null });
@@ -34,9 +33,18 @@ const savingUrl = ref(false);
 const loadingHistory = ref(false);
 const panelError = ref<string | null>(null);
 
-const activeUrl = computed(() => selectedUrl.value || customUrl.value.trim());
+const activeUrl = computed(() => urlDraft.value.trim());
 
 const headers = computed(() => ({ "X-API-Key": props.apiKey, "Content-Type": "application/json" }));
+
+function normalizeUrl(url: string): string {
+  return url.trim().replace(/\/$/, "").toLowerCase();
+}
+
+function isSelectedResult(result: WebsiteSearchResult): boolean {
+  if (!urlDraft.value.trim()) return false;
+  return normalizeUrl(result.url) === normalizeUrl(urlDraft.value);
+}
 
 async function parseError(response: Response): Promise<string> {
   const body = await response.json().catch(() => null);
@@ -82,8 +90,8 @@ async function searchWebsite(): Promise<void> {
     const payload = (await response.json()) as { query: string; results: WebsiteSearchResult[] };
     searchQuery.value = payload.query;
     searchResults.value = payload.results;
-    if (props.lead.website_url) {
-      selectedUrl.value = props.lead.website_url;
+    if (!urlDraft.value.trim() && props.lead.website_url) {
+      urlDraft.value = props.lead.website_url;
     }
   } catch (err) {
     panelError.value = err instanceof Error ? err.message : t("searchingDdg");
@@ -93,8 +101,7 @@ async function searchWebsite(): Promise<void> {
 }
 
 function selectResult(result: WebsiteSearchResult): void {
-  selectedUrl.value = result.url;
-  customUrl.value = "";
+  urlDraft.value = result.url;
 }
 
 async function saveUrlOnly(): Promise<void> {
@@ -173,8 +180,7 @@ async function openReport(analysisId: number): Promise<void> {
 watch(
   () => props.lead.id,
   async () => {
-    selectedUrl.value = props.lead.website_url ?? "";
-    customUrl.value = "";
+    urlDraft.value = props.lead.website_url ?? "";
     searchResults.value = [];
     searchQuery.value = "";
     panelError.value = null;
@@ -217,7 +223,7 @@ onMounted(async () => {
       <span v-if="analysisStatus.url" class="ml-1">— {{ analysisStatus.url }}</span>
     </p>
 
-    <div class="mt-4 flex flex-wrap gap-2">
+    <div class="mt-4">
       <button
         type="button"
         class="btn-primary animate-fade-up"
@@ -227,22 +233,6 @@ onMounted(async () => {
         @click="searchWebsite"
       >
         {{ searching ? t("searchingDdg") : t("searchDdg") }}
-      </button>
-      <button
-        type="button"
-        class="btn-secondary"
-        :disabled="!activeUrl || savingUrl"
-        @click="saveUrlOnly"
-      >
-        {{ savingUrl ? t("savingUrl") : t("saveUrl") }}
-      </button>
-      <button
-        type="button"
-        class="btn-accent"
-        :disabled="!activeUrl || analyzing || analysisStatus.busy"
-        @click="analyzeWebsite"
-      >
-        {{ analyzing ? t("analyzing") : t("analyzePlaywright") }}
       </button>
     </div>
 
@@ -262,7 +252,7 @@ onMounted(async () => {
         :key="result.url"
         type="button"
         class="research-result-btn animate-fade-up"
-        :class="{ selected: selectedUrl === result.url }"
+        :class="{ selected: isSelectedResult(result) }"
         :style="{ animationDelay: `${index * 60}ms` }"
         @click="selectResult(result)"
       >
@@ -273,15 +263,44 @@ onMounted(async () => {
     </TransitionGroup>
 
     <div class="mt-4">
-      <label class="text-sm text-brand-navy/70 dark:text-slate-300">{{ t("pasteUrl") }}</label>
+      <label class="text-sm font-medium text-brand-navy dark:text-slate-200" for="website-url-draft">
+        {{ t("pasteUrl") }}
+      </label>
+      <p class="mt-1 text-xs text-brand-navy/50 dark:text-slate-500">
+        {{ t("editUrlHint") }}
+      </p>
       <input
-        v-model="customUrl"
+        id="website-url-draft"
+        v-model="urlDraft"
         type="url"
         :placeholder="t('urlPlaceholder')"
         class="input-field mt-2"
-        @input="selectedUrl = ''"
+        autocomplete="url"
+        inputmode="url"
       />
     </div>
+
+    <div class="mt-4 flex flex-wrap gap-2">
+      <button
+        type="button"
+        class="btn-secondary"
+        :disabled="!activeUrl || savingUrl"
+        @click="saveUrlOnly"
+      >
+        {{ savingUrl ? t("savingUrl") : t("saveUrl") }}
+      </button>
+      <button
+        type="button"
+        class="btn-accent"
+        :disabled="!activeUrl || analyzing || analysisStatus.busy"
+        @click="analyzeWebsite"
+      >
+        {{ analyzing ? t("analyzing") : t("analyzePlaywright") }}
+      </button>
+    </div>
+    <p class="mt-2 text-xs text-brand-navy/50 dark:text-slate-500">
+      {{ t("saveUrlHint") }}
+    </p>
 
     <Transition name="panel">
       <div

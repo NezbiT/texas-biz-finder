@@ -19,6 +19,7 @@ from backend.app.schemas.lead import (
     LeadUpsertRequest,
 )
 from backend.app.services import csv_lead_store
+from backend.app.services.lead_research_resolver import merge_sqlite_website_fields
 from backend.app.services.lead_search import (
     search_leads as execute_lead_search,
     search_leads_page as execute_lead_search_page,
@@ -91,7 +92,9 @@ def search_leads(
     _: str = Depends(require_admin),
 ) -> LeadSearchPage:
     if settings.use_csv_backend and csv_lead_store.processed_data_ready():
-        return csv_lead_store.search_leads_page(params)
+        page = csv_lead_store.search_leads_page(params)
+        page.items = merge_sqlite_website_fields(session, page.items)
+        return page
     return execute_lead_search_page(session, params)
 
 

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session
 
 from backend.app.core.auth import require_admin
 from backend.app.database import get_session
-from backend.app.models.lead import Lead
 from backend.app.schemas.website_analysis import (
     AnalysisStatusResponse,
     WebsiteAnalysisRead,
@@ -19,6 +20,7 @@ from backend.app.schemas.website_analysis import (
 )
 from backend.app.services.analysis_lock import analysis_lock
 from backend.app.services.duckduckgo_search import search_business_website
+from backend.app.services.lead_research_resolver import lead_name_and_city, resolve_lead_for_research
 from backend.app.services.playwright_analyzer import analyze_url_with_playwright
 from backend.app.services.report_generator import generate_analysis_report
 from backend.app.services.website_analysis_store import (
@@ -30,13 +32,6 @@ from backend.app.services.website_analysis_store import (
 from backend.app.config import settings
 
 router = APIRouter(prefix="/api/leads", tags=["website-research"])
-
-
-def _get_lead_or_404(session: Session, lead_id: int) -> Lead:
-    lead = session.get(Lead, lead_id)
-    if lead is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
-    return lead
 
 
 @router.get("/website-research/status", response_model=AnalysisStatusResponse)
@@ -58,9 +53,9 @@ def search_lead_website(
     _: str = Depends(require_admin),
 ) -> WebsiteSearchResponse:
     """Search DuckDuckGo for the business website using name + city."""
-    lead = _get_lead_or_404(session, lead_id)
-    business_name = (body.business_name or lead.name).strip()
-    city = (body.city or lead.city).strip()
+    default_name, default_city = lead_name_and_city(session, lead_id)
+    business_name = (body.business_name or default_name).strip()
+    city = (body.city or default_city).strip()
     if not business_name or not city:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -90,7 +85,7 @@ async def analyze_lead_website(
     _: str = Depends(require_admin),
 ) -> WebsiteAnalysisRead:
     """Run a deep Playwright analysis on the selected URL (one at a time)."""
-    lead = _get_lead_or_404(session, lead_id)
+    lead = resolve_lead_for_research(session, lead_id)
     url = body.url.strip()
     if not url:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL is required")
@@ -114,7 +109,7 @@ async def analyze_lead_website(
             navigation_timeout_ms=settings.playwright_nav_timeout_ms,
             total_timeout_ms=settings.playwright_timeout_ms,
         )
-        record = save_analysis(session, lead_id=lead_id, result=result)
+        record = save_analysis(session, lead_id=lead.id or lead_id, result=result)
         if body.save_to_lead and result.status == "completed":
             apply_analysis_to_lead(session, lead, result)
         return analysis_to_read(record)
@@ -129,8 +124,8 @@ def get_lead_analyses(
     _: str = Depends(require_admin),
 ) -> list[WebsiteAnalysisRead]:
     """Return analysis history for a lead."""
-    _get_lead_or_404(session, lead_id)
-    records = list_analyses_for_lead(session, lead_id)
+    lead = resolve_lead_for_research(session, lead_id)
+    records = list_analyses_for_lead(session, lead.id or lead_id)
     return [analysis_to_read(r) for r in records]
 
 
@@ -142,11 +137,11 @@ def download_analysis_report(
     _: str = Depends(require_admin),
 ) -> HTMLResponse:
     """Generate an HTML report suitable for printing or PDF export."""
-    lead = _get_lead_or_404(session, lead_id)
+    lead = resolve_lead_for_research(session, lead_id)
     from backend.app.models.website_analysis import WebsiteAnalysis
 
     record = session.get(WebsiteAnalysis, analysis_id)
-    if record is None or record.lead_id != lead_id:
+    if record is None or record.lead_id != lead.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
 
     html = generate_analysis_report(lead, record)
@@ -165,13 +160,14 @@ def update_lead_website_url(
     _: str = Depends(require_admin),
 ) -> dict[str, str]:
     """Save the selected website URL on the lead without running Playwright."""
-    lead = _get_lead_or_404(session, lead_id)
+    lead = resolve_lead_for_research(session, lead_id)
     url = body.url.strip()
     if not url:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL is required")
 
     lead.website_url = url
     lead.has_website = True
+    lead.updated_at = datetime.now(timezone.utc)
     session.add(lead)
     session.commit()
-    return {"website_url": url}
+    return {"website_url": url, "external_id": lead.external_id, "name": lead.name}

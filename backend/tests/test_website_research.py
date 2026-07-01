@@ -151,3 +151,12 @@ def test_duckduckgo_build_query() -> None:
     assert "Joe's Auto" in query
     assert "Austin" in query
     assert "TX" in query
+
+
+def test_duckduckgo_search_returns_results() -> None:
+    from backend.app.services.duckduckgo_search import search_business_website
+
+    query, results = search_business_website("Auto Repair", "Austin", max_results=3)
+    assert "Austin" in query
+    assert len(results) >= 1
+    assert results[0].url.startswith("http")

@@ -620,8 +620,13 @@ body {
 
 body.sheet-open {
   overflow: hidden;
-  position: fixed;
-  width: 100%;
+}
+
+@media (max-width: 767px) {
+  body.sheet-open {
+    position: fixed;
+    width: 100%;
+  }
 }
 
 .header-inner {
@@ -742,7 +747,7 @@ body.sheet-open {
   position: fixed;
   left: 50%;
   bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
-  z-index: 50;
+  z-index: 80;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -886,10 +891,12 @@ body.sheet-open {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   z-index: 70;
-  max-height: min(88vh, 720px);
+  max-height: min(calc(100vh - 5rem - env(safe-area-inset-bottom, 0px)), 720px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   border-radius: 1.35rem 1.35rem 0 0;
   border: 1px solid rgba(255, 255, 255, 0.12);

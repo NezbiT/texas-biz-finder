@@ -458,7 +458,6 @@ onUnmounted(() => {
               <p class="text-sm text-brand-navy/65 dark:text-slate-300">
                 {{ lead.city }}, {{ lead.state }}
                 <span v-if="lead.zip_code"> · {{ lead.zip_code }}</span>
-                <span v-if="lead.county"> · {{ lead.county }} {{ t("county") }}</span>
               </p>
               <p v-if="lead.industry" class="mt-1 text-sm font-medium accent-text">
                 {{ lead.industry }}
@@ -659,7 +658,12 @@ onUnmounted(() => {
         </svg>
       </button>
 
-      <MobileSheet :open="activeResearchLead !== null" @close="researchLeadId = null">
+      <MobileSheet
+        :open="activeResearchLead !== null"
+        :touch-start="touchSwipe.onTouchStart"
+        :touch-end="touchSwipe.onTouchEnd"
+        @close="researchLeadId = null"
+      >
         <WebsiteResearchPanel
           v-if="activeResearchLead"
           :lead="activeResearchLead"

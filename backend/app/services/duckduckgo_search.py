@@ -72,6 +72,32 @@ def _dedupe_hits(hits: list[SearchHit]) -> list[SearchHit]:
     return unique
 
 
+def _load_ddgs():
+    try:
+        from ddgs import DDGS
+
+        return DDGS
+    except ImportError:
+        from duckduckgo_search import DDGS  # type: ignore[no-redef]
+
+        return DDGS
+
+
+def _run_text_search(query: str, *, max_results: int) -> list[SearchHit]:
+    DDGS = _load_ddgs()
+    hits: list[SearchHit] = []
+    with DDGS() as ddgs:
+        for raw in ddgs.text(query, max_results=max_results * 2):
+            if not isinstance(raw, dict):
+                continue
+            hit = _normalize_hit(raw)
+            if hit:
+                hits.append(hit)
+            if len(hits) >= max_results:
+                break
+    return hits
+
+
 def search_business_website(
     business_name: str,
     city: str,
@@ -83,17 +109,7 @@ def search_business_website(
     hits: list[SearchHit] = []
 
     try:
-        from duckduckgo_search import DDGS
-
-        with DDGS() as ddgs:
-            for raw in ddgs.text(query, max_results=max_results * 2):
-                if not isinstance(raw, dict):
-                    continue
-                hit = _normalize_hit(raw)
-                if hit:
-                    hits.append(hit)
-                if len(hits) >= max_results:
-                    break
+        hits = _run_text_search(query, max_results=max_results)
     except Exception as exc:  # noqa: BLE001 — surface as empty results upstream
         raise RuntimeError(f"DuckDuckGo search failed: {exc}") from exc
 
@@ -102,23 +118,12 @@ def search_business_website(
         for h in _dedupe_hits(hits)[:max_results]
     ]
 
-    # Fallback: relaxed query without quotes if nothing found.
     if not results:
         relaxed = re.sub(r'"', "", query)
         try:
-            from duckduckgo_search import DDGS
-
-            with DDGS() as ddgs:
-                for raw in ddgs.text(relaxed, max_results=max_results * 2):
-                    if not isinstance(raw, dict):
-                        continue
-                    hit = _normalize_hit(raw)
-                    if hit:
-                        hits.append(hit)
-                    if len(hits) >= max_results:
-                        break
+            hits = _run_text_search(relaxed, max_results=max_results)
         except Exception:
-            pass
+            hits = []
         results = [
             WebsiteSearchResult(title=h.title, url=h.url, snippet=h.snippet)
             for h in _dedupe_hits(hits)[:max_results]
