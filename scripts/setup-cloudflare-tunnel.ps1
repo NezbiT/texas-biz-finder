@@ -1,4 +1,4 @@
-# TX BizFinder — one-time Cloudflare Tunnel setup for www.txbizfinder.com
+# TX BizFinder - one-time Cloudflare Tunnel setup for www.txbizfinder.com
 # Requires: domain txbizfinder.com on your Cloudflare account (orange-cloud proxy ON).
 # Usage: .\scripts\setup-cloudflare-tunnel.ps1
 
@@ -24,7 +24,7 @@ function Find-Cloudflared {
 }
 
 Write-Host ""
-Write-Host "TX BizFinder — Cloudflare Tunnel setup" -ForegroundColor Cyan
+Write-Host "TX BizFinder - Cloudflare Tunnel setup" -ForegroundColor Cyan
 Write-Host "Dominio: www.txbizfinder.com" -ForegroundColor DarkGray
 Write-Host ""
 
@@ -39,7 +39,7 @@ Write-Host "cloudflared: $cf" -ForegroundColor Green
 $cert = Join-Path $CloudflaredDir "cert.pem"
 if (-not (Test-Path $cert)) {
     Write-Host ""
-    Write-Host "Paso 1/4 — Inicia sesion en Cloudflare (se abre el navegador)..." -ForegroundColor Cyan
+    Write-Host "Paso 1/4 - Inicia sesion en Cloudflare (se abre el navegador)..." -ForegroundColor Cyan
     Write-Host "Elige la cuenta donde esta txbizfinder.com" -ForegroundColor DarkGray
     & $cf tunnel login
     if (-not (Test-Path $cert)) {
@@ -51,26 +51,26 @@ if (-not (Test-Path $cert)) {
 }
 
 Write-Host ""
-Write-Host "Paso 2/4 — Crear tunnel '$TunnelName'..." -ForegroundColor Cyan
+Write-Host "Paso 2/4 - Crear tunnel '$TunnelName'..." -ForegroundColor Cyan
 $existing = & $cf tunnel list 2>&1 | Out-String
 if ($existing -match [regex]::Escape($TunnelName)) {
-    Write-Host "Tunnel '$TunnelName' ya existe — se reutiliza." -ForegroundColor Yellow
+    Write-Host "Tunnel '$TunnelName' ya existe - se reutiliza." -ForegroundColor Yellow
 } else {
     & $cf tunnel create $TunnelName
 }
 
-$infoJson = & $cf tunnel info $TunnelName --output json 2>$null
 $tunnelId = $null
-if ($infoJson) {
-    try {
-        $parsed = $infoJson | ConvertFrom-Json
-        $tunnelId = $parsed.id
-    } catch { }
+$listOut = & $cf tunnel list 2>&1 | Out-String
+$idPattern = [regex]::Escape($TunnelName) + '\s+([0-9a-f-]{36})'
+if ($listOut -match $idPattern) {
+    $tunnelId = $Matches[1]
 }
 if (-not $tunnelId) {
-    $listOut = & $cf tunnel list 2>&1 | Out-String
-    if ($listOut -match "$TunnelName\s+([0-9a-f-]{36})") {
-        $tunnelId = $Matches[1]
+    $credFiles = Get-ChildItem -Path $CloudflaredDir -Filter "*.json" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne "config.json" } |
+        Sort-Object LastWriteTime -Descending
+    if ($credFiles) {
+        $tunnelId = $credFiles[0].BaseName
     }
 }
 if (-not $tunnelId) {
@@ -86,18 +86,18 @@ if (-not (Test-Path $credFile)) {
 }
 
 Write-Host ""
-Write-Host "Paso 3/4 — DNS en Cloudflare (CNAME automatico)..." -ForegroundColor Cyan
-foreach ($host in @("www.txbizfinder.com", "txbizfinder.com")) {
-    $routeOut = & $cf tunnel route dns $TunnelName $host 2>&1 | Out-String
+Write-Host "Paso 3/4 - DNS en Cloudflare (CNAME automatico)..." -ForegroundColor Cyan
+foreach ($dnsName in @("www.txbizfinder.com", "txbizfinder.com")) {
+    $routeOut = & $cf tunnel route dns $TunnelName $dnsName 2>&1 | Out-String
     if ($routeOut -match "already exists|Added CNAME") {
-        Write-Host "  $host — OK" -ForegroundColor Green
+        Write-Host "  $dnsName - OK" -ForegroundColor Green
     } else {
-        Write-Host "  $host — $routeOut" -ForegroundColor Yellow
+        Write-Host "  $dnsName - $routeOut" -ForegroundColor Yellow
     }
 }
 
 Write-Host ""
-Write-Host "Paso 4/4 — Escribir $ConfigPath ..." -ForegroundColor Cyan
+Write-Host "Paso 4/4 - Escribir $ConfigPath ..." -ForegroundColor Cyan
 if (-not (Test-Path $TemplatePath)) {
     Write-Host "Falta plantilla: $TemplatePath" -ForegroundColor Red
     exit 1
