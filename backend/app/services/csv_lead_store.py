@@ -29,10 +29,6 @@ def _processed_duckdb_ready() -> bool:
     return settings.processed_duckdb_path.exists()
 
 
-def _processed_csv_ready() -> bool:
-    return settings.processed_csv_path.exists()
-
-
 def processed_data_ready() -> bool:
     """API reads typed DuckDB only (built from CSV during process)."""
     return _processed_duckdb_ready()

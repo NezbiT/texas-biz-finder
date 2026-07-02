@@ -17,11 +17,6 @@ export interface WebsiteSearchResult {
   wayback?: WaybackInfo | null;
 }
 
-export interface WebsiteSearchResponse {
-  query: string;
-  results: WebsiteSearchResult[];
-}
-
 export interface WebsiteAnalysis {
   id: number;
   lead_id: number;

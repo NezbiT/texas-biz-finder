@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -277,11 +277,3 @@ def deep_result_to_json_fields(result: DeepAnalysisResult) -> dict[str, str | No
     }
 
 
-def deep_result_as_dict(result: DeepAnalysisResult) -> dict[str, object]:
-    payload = asdict(result)
-    payload["seo_title"] = result.seo.title
-    payload["seo_meta_description"] = result.seo.meta_description
-    payload["seo_h1"] = result.seo.h1
-    payload["seo_issues"] = result.seo.issues
-    del payload["seo"]
-    return payload

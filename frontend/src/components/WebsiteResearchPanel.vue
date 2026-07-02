@@ -45,6 +45,13 @@ function normalizeUrl(url: string): string {
   return url.trim().replace(/\/$/, "").toLowerCase();
 }
 
+function hrefForResult(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return "#";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 function isSelectedResult(result: WebsiteSearchResult): boolean {
   if (!urlDraft.value.trim()) return false;
   return normalizeUrl(result.url) === normalizeUrl(urlDraft.value);
@@ -299,17 +306,27 @@ onMounted(async () => {
       <p key="label" class="text-sm font-medium text-brand-navy dark:text-slate-200">
         {{ t("resultsLabel") }}
       </p>
-      <button
+      <p key="hint" class="text-xs text-brand-navy/50 dark:text-slate-500">
+        {{ t("resultsOpenHint") }}
+      </p>
+      <article
         v-for="(result, index) in searchResults"
         :key="result.url"
-        type="button"
-        class="research-result-btn animate-fade-up"
+        class="research-result-card animate-fade-up"
         :class="{ selected: isSelectedResult(result) }"
         :style="{ animationDelay: `${index * 60}ms` }"
-        @click="selectResult(result)"
       >
         <p class="font-medium text-brand-navy dark:text-white">{{ result.title }}</p>
-        <p class="text-xs accent-link">{{ result.url }}</p>
+        <a
+          :href="hrefForResult(result.url)"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="research-result-link mt-1 inline-block text-xs"
+          @click.stop
+        >
+          {{ result.url }}
+          <span class="sr-only">{{ t("openLink") }}</span>
+        </a>
         <p class="mt-1 text-sm text-brand-navy/60 dark:text-slate-400">{{ result.snippet }}</p>
         <p
           v-if="result.wayback?.available"
@@ -320,7 +337,26 @@ onMounted(async () => {
             · {{ formatWaybackAge(result.wayback) }}
           </span>
         </p>
-      </button>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a
+            :href="hrefForResult(result.url)"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-secondary px-3 py-1.5 text-xs"
+            @click.stop
+          >
+            {{ t("openLink") }}
+          </a>
+          <button
+            type="button"
+            class="btn-primary px-3 py-1.5 text-xs"
+            :class="{ 'ring-2 ring-brand-copper ring-offset-2 dark:ring-offset-brand-navy': isSelectedResult(result) }"
+            @click="selectResult(result)"
+          >
+            {{ isSelectedResult(result) ? t("selectedUrl") : t("useThisUrl") }}
+          </button>
+        </div>
+      </article>
     </TransitionGroup>
 
     <div class="mt-4">

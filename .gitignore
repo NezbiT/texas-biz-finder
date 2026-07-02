@@ -22,6 +22,8 @@ data/*
 
 # Test / tooling
 .pytest_cache/
+.skylos/
+frontend/.fallow/
 
 # IDE
 .idea/

@@ -297,21 +297,30 @@
     animation: research-glow 4s ease-in-out infinite;
   }
 
-  .research-result-btn {
+  .research-result-btn,
+  .research-result-card {
     @apply block w-full rounded-xl border px-4 py-3 text-left;
     @apply border-brand-navy/10 bg-white dark:border-white/10 dark:bg-brand-navy/50;
     transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease-out,
       box-shadow 0.2s ease-out, background-color 0.2s ease-out;
   }
 
-  .research-result-btn:hover {
+  .research-result-btn:hover,
+  .research-result-card:hover {
     transform: translateX(4px);
     @apply border-brand-teal/40 shadow-sm;
   }
 
-  .research-result-btn.selected {
+  .research-result-btn.selected,
+  .research-result-card.selected {
     @apply border-brand-copper bg-brand-copper/10 shadow-sm dark:border-brand-copper-light;
     animation: glow-pulse-soft 2s ease-in-out infinite;
+  }
+
+  .research-result-link {
+    @apply font-medium text-brand-teal underline decoration-brand-teal/40 underline-offset-2;
+    @apply transition-colors hover:text-brand-copper hover:decoration-brand-copper;
+    word-break: break-all;
   }
 
   .skeleton {

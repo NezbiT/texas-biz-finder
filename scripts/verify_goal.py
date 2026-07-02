@@ -71,7 +71,7 @@ def run_backend_probe(scratch: Path) -> None:
         )
         probe_lines: list[str] = []
         try:
-            for attempt in range(20):
+            for _ in range(20):
                 try:
                     health = httpx.get("http://127.0.0.1:8000/health", timeout=2)
                     if health.status_code == 200:

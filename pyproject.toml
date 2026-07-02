@@ -15,14 +15,15 @@ dependencies = [
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
     "httpx>=0.27.0",
-    "python-multipart>=0.0.12",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.0",
     "duckduckgo-search>=6.3.0",
     "playwright>=1.49.0",
     "duckdb>=1.1.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3.0", "pytest-asyncio>=0.24.0"]
+dev = ["pytest>=8.4.0", "pytest-asyncio>=0.24.0", "pillow>=10.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -32,3 +33,11 @@ include = ["backend*", "scripts*"]
 testpaths = ["backend/tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+
+[tool.skylos]
+# Vue SFC imports are not traced; composables/i18n/types are used from .vue files.
+exclude = [
+    "frontend/src/composables",
+    "frontend/src/i18n",
+    "frontend/src/types",
+]

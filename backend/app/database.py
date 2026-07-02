@@ -1,5 +1,4 @@
 from collections.abc import Generator
-from pathlib import Path
 
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine

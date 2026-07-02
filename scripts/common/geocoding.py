@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 EARTH_RADIUS_MILES = 3958.8
-ZIP_PATTERN = re.compile(r"^\d{5}$")
 
 
 @dataclass(frozen=True)

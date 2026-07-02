@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import html
 import json
-from datetime import datetime
 
 from backend.app.models.lead import Lead
 from backend.app.models.website_analysis import WebsiteAnalysis

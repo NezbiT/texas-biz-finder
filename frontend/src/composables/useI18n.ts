@@ -2,7 +2,7 @@ import { computed, ref } from "vue";
 import { en, type MessageKey } from "../i18n/en";
 import { es } from "../i18n/es";
 
-export type Locale = "en" | "es";
+type Locale = "en" | "es";
 
 const catalogs = { en, es } as const;
 

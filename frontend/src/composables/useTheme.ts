@@ -1,6 +1,6 @@
 import { onMounted, ref, watch } from "vue";
 
-export type ThemeMode = "light" | "dark";
+type ThemeMode = "light" | "dark";
 
 const theme = ref<ThemeMode>("dark");
 
