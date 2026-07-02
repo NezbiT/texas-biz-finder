@@ -13,6 +13,10 @@ from backend.app.routers import leads_router, website_research_router
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    if settings.use_supabase_backend and not settings.is_postgres:
+        raise RuntimeError(
+            "DATA_BACKEND=supabase requires DATABASE_URL=postgresql://... (Supabase connection string)"
+        )
     init_db()
     yield
 

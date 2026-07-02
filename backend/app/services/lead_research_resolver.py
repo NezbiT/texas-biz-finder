@@ -1,4 +1,4 @@
-"""Resolve bulk (DuckDB) leads for website research stored in SQLite."""
+"""Resolve leads for website research (bulk DuckDB vs unified Supabase/SQLite)."""
 
 from __future__ import annotations
 
@@ -38,7 +38,13 @@ def ensure_sqlite_lead(session: Session, bulk: LeadRead) -> Lead:
 
 
 def resolve_lead_for_research(session: Session, lead_id: int) -> Lead:
-    """Map API lead id to a SQLite Lead used for website URL + analysis persistence."""
+    """Map API lead id to a Lead used for website URL + analysis persistence."""
+    if settings.use_supabase_backend:
+        lead = session.get(Lead, lead_id)
+        if lead is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
+        return lead
+
     if settings.use_csv_backend and csv_lead_store.processed_data_ready():
         bulk = csv_lead_store.get_lead_by_id(lead_id)
         if bulk is None:
@@ -53,6 +59,12 @@ def resolve_lead_for_research(session: Session, lead_id: int) -> Lead:
 
 def lead_name_and_city(session: Session, lead_id: int) -> tuple[str, str]:
     """Return business name and city for DuckDuckGo search."""
+    if settings.use_supabase_backend:
+        lead = session.get(Lead, lead_id)
+        if lead is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
+        return lead.name.strip(), lead.city.strip()
+
     if settings.use_csv_backend and csv_lead_store.processed_data_ready():
         bulk = csv_lead_store.get_lead_by_id(lead_id)
         if bulk is None:

@@ -65,6 +65,24 @@ def lead_stats(
     _: str = Depends(require_admin),
 ) -> dict[str, int]:
     """Return database totals so the UI can explain filtered result counts."""
+    if settings.use_supabase_backend:
+        total = session.exec(select(func.count()).select_from(Lead)).one()
+        qualified = session.exec(
+            select(func.count()).select_from(Lead).where(Lead.is_qualified.is_(True))
+        ).one()
+        small_business = session.exec(
+            select(func.count()).select_from(Lead).where(Lead.is_small_business.is_(True))
+        ).one()
+        sells_alcohol = session.exec(
+            select(func.count()).select_from(Lead).where(Lead.sells_alcohol.is_(True))
+        ).one()
+        return {
+            "total": total,
+            "qualified": qualified,
+            "small_business": small_business,
+            "sells_alcohol": sells_alcohol,
+        }
+
     if settings.use_csv_backend:
         csv_stats = csv_lead_store.lead_stats()
         if csv_stats["total"] > 0 or csv_lead_store.processed_data_ready():
@@ -91,6 +109,8 @@ def search_leads(
     session: Session = Depends(get_session),
     _: str = Depends(require_admin),
 ) -> LeadSearchPage:
+    if settings.use_supabase_backend:
+        return execute_lead_search_page(session, params)
     if settings.use_csv_backend and csv_lead_store.processed_data_ready():
         page = csv_lead_store.search_leads_page(params)
         page.items = merge_sqlite_website_fields(session, page.items)
@@ -146,7 +166,9 @@ def export_leads_csv(
     session: Session = Depends(get_session),
     _: str = Depends(require_admin),
 ) -> StreamingResponse:
-    if settings.use_csv_backend and csv_lead_store.processed_data_ready():
+    if settings.use_supabase_backend:
+        leads = execute_lead_search(session, params)
+    elif settings.use_csv_backend and csv_lead_store.processed_data_ready():
         page = csv_lead_store.search_leads_page(params)
         leads = page.items
     else:

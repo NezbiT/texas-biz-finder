@@ -40,6 +40,12 @@ class Lead(SQLModel, table=True):
     is_qualified: bool = Field(default=False, index=True)
     qualification_score: float = Field(default=0.0)
     qualification_notes: str | None = None
+    sells_alcohol: bool = Field(default=False, index=True)
+    alcohol_segment: str | None = None
+    liquor_receipts_total: float | None = None
+    wine_receipts_total: float | None = None
+    beer_receipts_total: float | None = None
+    total_receipts_total: float | None = None
     source: str = "texas_public_stub"
     created_at: datetime = Field(default_factory=_utc_now)
     updated_at: datetime = Field(default_factory=_utc_now)

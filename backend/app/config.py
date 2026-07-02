@@ -27,6 +27,14 @@ class Settings(BaseSettings):
         return self.data_backend.lower() == "csv"
 
     @property
+    def use_supabase_backend(self) -> bool:
+        return self.data_backend.lower() == "supabase"
+
+    @property
+    def is_postgres(self) -> bool:
+        return self.database_url.startswith("postgresql")
+
+    @property
     def sqlite_path(self) -> Path:
         url = self.database_url.removeprefix("sqlite:///")
         return Path(url)

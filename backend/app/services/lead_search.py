@@ -9,6 +9,7 @@ from sqlmodel import Session, col, func, select
 
 from backend.app.models.lead import Lead
 from backend.app.schemas.lead import LeadRead, LeadSearchPage, LeadSearchParams
+from backend.app.services.lead_mapper import lead_to_read
 from scripts.common.geocoding import filter_by_radius, resolve_coordinates
 
 
@@ -17,6 +18,8 @@ def _apply_filters(statement, params: LeadSearchParams):
         statement = statement.where(Lead.is_qualified.is_(True))
     if params.small_business_only:
         statement = statement.where(Lead.is_small_business.is_(True))
+    if params.sells_alcohol_only:
+        statement = statement.where(Lead.sells_alcohol.is_(True))
     if params.county:
         statement = statement.where(col(Lead.county).ilike(f"%{params.county}%"))
     if params.industry:
@@ -77,18 +80,19 @@ def search_leads(session: Session, params: LeadSearchParams) -> list[LeadRead]:
     if params.radius_miles is not None:
         within_radius = _radius_matches(session, params)
         sliced = within_radius[params.offset : params.offset + params.limit]
-        return [
-            LeadRead.model_validate(lead).model_copy(update={"distance_miles": distance})
-            for lead, distance in sliced
-        ]
+        return [lead_to_read(lead, distance_miles=distance) for lead, distance in sliced]
 
     statement = (
         _base_query(params)
-        .order_by(col(Lead.qualification_score).desc())
+        .order_by(
+            col(Lead.qualification_score).desc(),
+            col(Lead.total_receipts_total).desc(),
+            col(Lead.name),
+        )
         .offset(params.offset)
         .limit(params.limit)
     )
-    return [LeadRead.model_validate(lead) for lead in session.exec(statement).all()]
+    return [lead_to_read(lead) for lead in session.exec(statement).all()]
 
 
 def search_leads_page(session: Session, params: LeadSearchParams) -> LeadSearchPage:
