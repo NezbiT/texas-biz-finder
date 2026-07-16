@@ -1,4 +1,9 @@
-"""Resolve leads for website research (bulk DuckDB vs unified Supabase/SQLite)."""
+"""Resuelve leads para el research de sitios web, uniendo los dos mundos:
+
+- Los leads masivos viven en DuckDB (solo lectura, regenerable).
+- El research (URL guardada, análisis) se PERSISTE en SQLite/Postgres.
+Este módulo mapea entre ambos usando external_id como clave estable.
+"""
 
 from __future__ import annotations
 
@@ -12,11 +17,12 @@ from backend.app.services import csv_lead_store
 
 
 def ensure_sqlite_lead(session: Session, bulk: LeadRead) -> Lead:
-    """Get or create a SQLite lead row keyed by external_id (stable across backends)."""
+    """Busca (o crea) la fila SQLite espejo de un lead bulk, por external_id."""
     existing = session.exec(select(Lead).where(Lead.external_id == bulk.external_id)).first()
     if existing is not None:
-        return existing
+        return existing   # ya existe el espejo → usarlo
 
+    # Copia los campos identitarios del lead bulk a la fila persistente
     lead = Lead(
         external_id=bulk.external_id,
         name=bulk.name,
@@ -33,24 +39,27 @@ def ensure_sqlite_lead(session: Session, bulk: LeadRead) -> Lead:
     )
     session.add(lead)
     session.commit()
-    session.refresh(lead)
+    session.refresh(lead)   # recupera el id autogenerado
     return lead
 
 
 def resolve_lead_for_research(session: Session, lead_id: int) -> Lead:
-    """Map API lead id to a Lead used for website URL + analysis persistence."""
+    """id de la API → fila Lead donde persistir URL/análisis (según backend)."""
+    # Backend Supabase: los leads ya viven en la misma base → lookup directo
     if settings.use_supabase_backend:
         lead = session.get(Lead, lead_id)
         if lead is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
         return lead
 
+    # Backend bulk (CSV/DuckDB): buscar el lead bulk y asegurar su espejo SQLite
     if settings.use_csv_backend and csv_lead_store.processed_data_ready():
         bulk = csv_lead_store.get_lead_by_id(lead_id)
         if bulk is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
         return ensure_sqlite_lead(session, bulk)
 
+    # Fallback: modo SQLite puro (dataset chico ingestado directo)
     lead = session.get(Lead, lead_id)
     if lead is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
@@ -58,7 +67,8 @@ def resolve_lead_for_research(session: Session, lead_id: int) -> Lead:
 
 
 def lead_name_and_city(session: Session, lead_id: int) -> tuple[str, str]:
-    """Return business name and city for DuckDuckGo search."""
+    """Nombre y ciudad del negocio (los insumos de la búsqueda DuckDuckGo)."""
+    # Misma lógica de resolución por backend que arriba
     if settings.use_supabase_backend:
         lead = session.get(Lead, lead_id)
         if lead is None:
@@ -78,21 +88,27 @@ def lead_name_and_city(session: Session, lead_id: int) -> tuple[str, str]:
 
 
 def merge_sqlite_website_fields(session: Session, items: list[LeadRead]) -> list[LeadRead]:
-    """Overlay website research saved in SQLite onto bulk DuckDB lead rows."""
+    """Superpone el research guardado en SQLite sobre los leads bulk de DuckDB.
+
+    Así el usuario ve la URL/análisis que guardó aunque el listado venga del
+    dataset masivo regenerable."""
     if not items:
         return items
 
+    # Un solo SELECT con IN por todos los external_id de la página
     external_ids = [item.external_id for item in items]
     rows = session.exec(select(Lead).where(Lead.external_id.in_(external_ids))).all()
-    by_external_id = {row.external_id: row for row in rows}
+    by_external_id = {row.external_id: row for row in rows}   # índice por clave
 
     merged: list[LeadRead] = []
     for item in items:
         sqlite_lead = by_external_id.get(item.external_id)
+        # Sin espejo o sin URL guardada → el lead bulk pasa sin cambios
         if sqlite_lead is None or not sqlite_lead.website_url:
             merged.append(item)
             continue
 
+        # Con research guardado → sobreescribe los campos website_* del bulk
         notes = sqlite_lead.website_analysis_notes or item.website_analysis_notes
         merged.append(
             item.model_copy(

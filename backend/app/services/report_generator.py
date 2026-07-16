@@ -1,8 +1,8 @@
-"""Generate HTML reports for saved website analyses."""
+"""Genera reportes HTML de los análisis guardados (para propuestas de venta)."""
 
 from __future__ import annotations
 
-import html
+import html    # html.escape: todo dato del lead se escapa antes de ir al HTML
 import json
 
 from backend.app.models.lead import Lead
@@ -10,6 +10,7 @@ from backend.app.models.website_analysis import WebsiteAnalysis
 
 
 def _parse_json_list(raw: str | None) -> list[str]:
+    """Campo TEXT JSON → lista de strings (vacía si es nulo o corrupto)."""
     if not raw:
         return []
     try:
@@ -20,17 +21,19 @@ def _parse_json_list(raw: str | None) -> list[str]:
 
 
 def generate_analysis_report(lead: Lead, analysis: WebsiteAnalysis) -> str:
-    """Build a printable HTML report for sales proposals."""
-    technologies = _parse_json_list(analysis.technologies_json)
-    seo_issues = _parse_json_list(analysis.seo_issues_json)
-    created = analysis.created_at.strftime("%Y-%m-%d %H:%M UTC")
+    """Construye un reporte HTML imprimible (el frontend lo abre en otra pestaña)."""
+    technologies = _parse_json_list(analysis.technologies_json)   # stack detectado
+    seo_issues = _parse_json_list(analysis.seo_issues_json)       # problemas SEO
+    created = analysis.created_at.strftime("%Y-%m-%d %H:%M UTC")  # fecha legible
 
+    # Listas <li> pre-armadas (con fallback si están vacías)
     tech_items = "".join(f"<li>{html.escape(t)}</li>" for t in technologies) or "<li>None detected</li>"
     issue_items = (
         "".join(f"<li>{html.escape(i)}</li>" for i in seo_issues)
         or "<li>No major SEO issues detected</li>"
     )
 
+    # Documento completo con estilos inline (auto-contenido, imprimible)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,18 +51,21 @@ def generate_analysis_report(lead: Lead, analysis: WebsiteAnalysis) -> str:
 <body>
   <p class="muted">TX BizFinder · txbizfinder.com · Generated {html.escape(created)}</p>
   <h1>Website Analysis Report</h1>
+  <!-- Datos del negocio -->
   <div class="card">
     <h2>Business</h2>
     <p><strong>{html.escape(lead.name)}</strong><br />
     {html.escape(lead.city)}, {html.escape(lead.state)} {html.escape(lead.zip_code or "")}</p>
     <p>Lead ID: {lead.id} · Analysis ID: {analysis.id}</p>
   </div>
+  <!-- URL analizada y estado -->
   <div class="card">
     <h2>URL</h2>
     <p><a href="{html.escape(analysis.url)}">{html.escape(analysis.url)}</a></p>
     {f'<p class="muted">Final URL: {html.escape(analysis.final_url)}</p>' if analysis.final_url else ""}
     <p>Status: <span class="badge">{html.escape(analysis.status)}</span></p>
   </div>
+  <!-- Métricas de rendimiento medidas por Playwright -->
   <div class="card">
     <h2>Performance</h2>
     <ul>
@@ -68,10 +74,12 @@ def generate_analysis_report(lead: Lead, analysis: WebsiteAnalysis) -> str:
       <li>Last modified: {html.escape(analysis.last_modified or "Unknown")}</li>
     </ul>
   </div>
+  <!-- Tecnologías detectadas -->
   <div class="card">
     <h2>Technologies</h2>
     <ul>{tech_items}</ul>
   </div>
+  <!-- Radiografía SEO -->
   <div class="card">
     <h2>SEO Snapshot</h2>
     <p><strong>Title:</strong> {html.escape(analysis.seo_title or "—")}</p>
@@ -80,6 +88,7 @@ def generate_analysis_report(lead: Lead, analysis: WebsiteAnalysis) -> str:
     <h3>Issues</h3>
     <ul>{issue_items}</ul>
   </div>
+  <!-- Resumen y (si lo hubo) el error del análisis -->
   <div class="card">
     <h2>Summary</h2>
     <p>{html.escape(analysis.summary or "No summary available.")}</p>
