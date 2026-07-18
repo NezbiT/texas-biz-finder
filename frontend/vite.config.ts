@@ -1,5 +1,5 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { VitePWA } from "vite-plugin-pwa";
 import path from 'node:path';
@@ -13,7 +13,12 @@ const isStorybook =
   process.env.npm_lifecycle_event === "build-storybook";
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const fileEnv = loadEnv(mode, dirname, "");
+  const apiProxyTarget =
+    fileEnv.VITE_API_PROXY_TARGET || process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:8000";
+
+  return {
   plugins: [
     vue(),
     ...(isStorybook
@@ -23,9 +28,10 @@ export default defineConfig({
     registerType: "autoUpdate",
     includeAssets: ["favicon.svg", "apple-touch-icon.png", "pwa-192.png", "pwa-512.png"],
     manifest: {
-      name: "TX BizFinder",
-      short_name: "TXBizFinder",
-      description: "Find and qualify Texas small businesses. TABC alcohol data, 500K+ leads.",
+      name: "TxBizFinder Intelligence",
+      short_name: "TxBizFinder",
+      description:
+        "Texas suite: business leads, Houston permits, Ship Channel air, emissions. Four apps. One map.",
       theme_color: "#0c1222",
       background_color: "#0c1222",
       display: "standalone",
@@ -51,6 +57,8 @@ export default defineConfig({
       }]
     },
     workbox: {
+      // Silence "Router is responding to… / PrecacheRoute" spam in the console
+      disableDevLogs: true,
       globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,webmanifest}"],
       runtimeCaching: [{
         urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -85,8 +93,10 @@ export default defineConfig({
         }
       }]
     },
+    // No service worker in `npm run dev` — keeps console clean; SW only on build/prod
     devOptions: {
-      enabled: true
+      enabled: false,
+      disableDevLogs: true,
     }
           }),
         ]),
@@ -96,7 +106,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8000",
+        target: apiProxyTarget,
         changeOrigin: true
       }
     }
@@ -123,4 +133,5 @@ export default defineConfig({
       }
     }]
   }
+};
 });

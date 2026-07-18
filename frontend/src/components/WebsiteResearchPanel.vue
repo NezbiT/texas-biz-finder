@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "../composables/useI18n";
+import {
+  analyzeLeadWebsite,
+  fetchAnalysisReportHtml,
+  fetchResearchStatus,
+  fetchWayback,
+  fetchWebsiteAnalyses,
+  saveLeadWebsiteUrl,
+  searchLeadWebsite,
+} from "../lib/leadsApi";
 import type { Lead } from "../types/lead";
 import type {
   AnalysisStatus,
@@ -11,7 +20,8 @@ import type {
 
 const props = defineProps<{
   lead: Lead;
-  apiKey: string;
+  /** @deprecated API key comes from env via lib/api — kept optional for call-site compat. */
+  apiKey?: string;
 }>();
 
 const emit = defineEmits<{
@@ -39,8 +49,6 @@ let waybackTimer: ReturnType<typeof setTimeout> | null = null;
 
 const activeUrl = computed(() => urlDraft.value.trim());
 
-const headers = computed(() => ({ "X-API-Key": props.apiKey, "Content-Type": "application/json" }));
-
 function normalizeUrl(url: string): string {
   return url.trim().replace(/\/$/, "").toLowerCase();
 }
@@ -57,28 +65,18 @@ function isSelectedResult(result: WebsiteSearchResult): boolean {
   return normalizeUrl(result.url) === normalizeUrl(urlDraft.value);
 }
 
-async function parseError(response: Response): Promise<string> {
-  const body = await response.json().catch(() => null);
-  if (typeof body?.detail === "string") return body.detail;
-  if (body?.detail?.message) return String(body.detail.message);
-  return `API error ${response.status}`;
-}
-
 async function refreshStatus(): Promise<void> {
-  const response = await fetch("/api/leads/website-research/status", { headers: headers.value });
-  if (response.ok) {
-    analysisStatus.value = (await response.json()) as AnalysisStatus;
+  try {
+    analysisStatus.value = await fetchResearchStatus();
+  } catch {
+    /* non-blocking */
   }
 }
 
 async function loadHistory(): Promise<void> {
   loadingHistory.value = true;
   try {
-    const response = await fetch(`/api/leads/${props.lead.id}/website-analyses`, {
-      headers: headers.value,
-    });
-    if (!response.ok) throw new Error(await parseError(response));
-    analyses.value = (await response.json()) as WebsiteAnalysis[];
+    analyses.value = await fetchWebsiteAnalyses(props.lead.id);
     latestAnalysis.value = analyses.value[0] ?? null;
   } catch (err) {
     panelError.value = err instanceof Error ? err.message : t("loadingHistory");
@@ -92,13 +90,7 @@ async function searchWebsite(): Promise<void> {
   panelError.value = null;
   searchResults.value = [];
   try {
-    const response = await fetch(`/api/leads/${props.lead.id}/website-search`, {
-      method: "POST",
-      headers: headers.value,
-      body: JSON.stringify({ max_results: 8 }),
-    });
-    if (!response.ok) throw new Error(await parseError(response));
-    const payload = (await response.json()) as { query: string; results: WebsiteSearchResult[] };
+    const payload = await searchLeadWebsite(props.lead.id, { max_results: 8 });
     searchQuery.value = payload.query;
     searchResults.value = payload.results;
     if (!urlDraft.value.trim() && props.lead.website_url) {
@@ -124,15 +116,7 @@ async function fetchWaybackForUrl(url: string): Promise<void> {
   }
   loadingWayback.value = true;
   try {
-    const response = await fetch(
-      `/api/leads/website-wayback?url=${encodeURIComponent(target)}`,
-      { headers: headers.value },
-    );
-    if (response.ok) {
-      waybackDraft.value = (await response.json()) as WaybackInfo;
-    } else {
-      waybackDraft.value = null;
-    }
+    waybackDraft.value = await fetchWayback(target);
   } catch {
     waybackDraft.value = null;
   } finally {
@@ -151,12 +135,7 @@ async function saveUrlOnly(): Promise<void> {
   savingUrl.value = true;
   panelError.value = null;
   try {
-    const response = await fetch(`/api/leads/${props.lead.id}/website-url`, {
-      method: "PATCH",
-      headers: headers.value,
-      body: JSON.stringify({ url }),
-    });
-    if (!response.ok) throw new Error(await parseError(response));
+    await saveLeadWebsiteUrl(props.lead.id, { url });
     emit("saved");
   } catch (err) {
     panelError.value = err instanceof Error ? err.message : t("savingUrl");
@@ -181,20 +160,18 @@ async function analyzeWebsite(): Promise<void> {
   analyzing.value = true;
   panelError.value = null;
   try {
-    const response = await fetch(`/api/leads/${props.lead.id}/website-analyze`, {
-      method: "POST",
-      headers: headers.value,
-      body: JSON.stringify({ url, save_to_lead: true }),
+    latestAnalysis.value = await analyzeLeadWebsite(props.lead.id, {
+      url,
+      save_to_lead: true,
     });
-    if (response.status === 409) {
-      throw new Error(t("playwrightConflict"));
-    }
-    if (!response.ok) throw new Error(await parseError(response));
-    latestAnalysis.value = (await response.json()) as WebsiteAnalysis;
     await loadHistory();
     emit("saved");
   } catch (err) {
-    panelError.value = err instanceof Error ? err.message : t("analyzing");
+    if (err instanceof Error && err.message === "CONFLICT_BUSY") {
+      panelError.value = t("playwrightConflict");
+    } else {
+      panelError.value = err instanceof Error ? err.message : t("analyzing");
+    }
   } finally {
     analyzing.value = false;
     await refreshStatus();
@@ -203,12 +180,7 @@ async function analyzeWebsite(): Promise<void> {
 
 async function openReport(analysisId: number): Promise<void> {
   try {
-    const response = await fetch(
-      `/api/leads/${props.lead.id}/website-analyses/${analysisId}/report`,
-      { headers: headers.value },
-    );
-    if (!response.ok) throw new Error(await parseError(response));
-    const html = await response.text();
+    const html = await fetchAnalysisReportHtml(props.lead.id, analysisId);
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");

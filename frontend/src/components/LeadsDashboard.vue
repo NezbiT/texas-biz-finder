@@ -1,21 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import AppLogo from "./AppLogo.vue";
+import { SUITE_HOME_PATH } from "../config/suite";
+import { exportLeadsCsv, fetchLeadStats, searchLeads } from "../lib/leadsApi";
+import BrandMark from "./BrandMark.vue";
+import ChromeToggles from "./ChromeToggles.vue";
 import MobileBottomDock from "./MobileBottomDock.vue";
 import MobileSheet from "./MobileSheet.vue";
-import PageParticles from "./PageParticles.vue";
-import LocaleToggle from "./LocaleToggle.vue";
-import ThemeToggle from "./ThemeToggle.vue";
+import PageShell from "./PageShell.vue";
+import SuiteFooter from "./SuiteFooter.vue";
 import WebsiteResearchPanel from "./WebsiteResearchPanel.vue";
 import { useI18n } from "../composables/useI18n";
 import { useScrollCompact } from "../composables/useScrollCompact";
 import { useTouchSwipe } from "../composables/useTouchSwipe";
-import type { LeadSearchPage } from "../types/lead-search";
 import type { Lead } from "../types/lead";
 
 const { t } = useI18n();
-const API_KEY = import.meta.env.VITE_ADMIN_API_KEY ?? "admin-dev-key-change-me";
 const PAGE_SIZE = 50;
+const suiteHome = SUITE_HOME_PATH;
 
 const leads = ref<Lead[]>([]);
 const loading = ref(false);
@@ -112,11 +113,10 @@ function buildSearchParams(forExport = false): URLSearchParams {
 }
 
 async function fetchStats(): Promise<void> {
-  const response = await fetch("/api/leads/stats", {
-    headers: { "X-API-Key": API_KEY },
-  });
-  if (response.ok) {
-    dbStats.value = (await response.json()) as typeof dbStats.value;
+  try {
+    dbStats.value = await fetchLeadStats();
+  } catch {
+    /* stats are non-blocking */
   }
 }
 
@@ -125,18 +125,7 @@ async function fetchLeads(): Promise<void> {
   error.value = null;
 
   try {
-    const response = await fetch(`/api/leads?${buildSearchParams().toString()}`, {
-      headers: { "X-API-Key": API_KEY },
-    });
-    if (!response.ok) {
-      const detail = await response.json().catch(() => null);
-      const message =
-        typeof detail?.detail === "string"
-          ? detail.detail
-          : `API error: ${response.status}`;
-      throw new Error(message);
-    }
-    const page = (await response.json()) as LeadSearchPage;
+    const page = await searchLeads(buildSearchParams());
     leads.value = page.items;
     filteredTotal.value = page.total;
     totalPages.value = page.pages;
@@ -179,18 +168,17 @@ async function onResearchSaved(): Promise<void> {
 }
 
 async function exportCsv(): Promise<void> {
-  const response = await fetch(`/api/leads/export/csv?${buildSearchParams(true).toString()}`, {
-    headers: { "X-API-Key": API_KEY },
-  });
-  if (!response.ok) return;
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = "texas_leads.csv";
-  anchor.click();
-  URL.revokeObjectURL(url);
+  try {
+    const blob = await exportLeadsCsv(buildSearchParams(true));
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "texas_leads.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    /* export failures stay silent in UI for now */
+  }
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -222,29 +210,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="page-shell">
-    <PageParticles />
-    <div class="page-content">
+  <PageShell>
     <header class="app-header" :class="{ 'header-compact': headerCompact }">
       <div
         class="header-inner mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6"
       >
-        <div class="flex min-w-0 items-center gap-3 animate-slide-up" style="animation-delay: 0ms">
-          <AppLogo :size="headerCompact ? 'sm' : 'md'" class="header-logo" />
-          <div class="min-w-0">
-            <p
-              class="header-tagline animate-fade-in text-[0.65rem] font-semibold uppercase tracking-[0.22em] accent-text"
-              style="animation-delay: 120ms"
-            >
-              {{ t("tagline") }}
-            </p>
-            <h1
-              class="header-title animate-fade-up truncate font-display text-2xl font-bold tracking-tight text-brand-navy dark:text-white"
-              style="animation-delay: 180ms"
-            >
-              {{ t("appName") }}
-            </h1>
-          </div>
+        <div class="animate-slide-up" style="animation-delay: 0ms">
+          <BrandMark
+            class="header-logo"
+            :to="suiteHome"
+            :title="t('appName')"
+            :subtitle="t('suiteBackHome')"
+            :size="headerCompact ? 'sm' : 'md'"
+            title-tag="h1"
+          />
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
@@ -274,10 +253,7 @@ onUnmounted(() => {
             </span>
           </div>
           <div class="animate-fade-in" style="animation-delay: 400ms">
-            <LocaleToggle />
-          </div>
-          <div class="animate-fade-in" style="animation-delay: 450ms">
-            <ThemeToggle />
+            <ChromeToggles />
           </div>
         </div>
       </div>
@@ -561,7 +537,6 @@ onUnmounted(() => {
               <WebsiteResearchPanel
                 :key="lead.id"
                 :lead="lead"
-                :api-key="API_KEY"
                 @saved="onResearchSaved"
                 @close="researchLeadId = null"
               />
@@ -667,12 +642,11 @@ onUnmounted(() => {
         <WebsiteResearchPanel
           v-if="activeResearchLead"
           :lead="activeResearchLead"
-          :api-key="API_KEY"
           @saved="onResearchSaved"
           @close="researchLeadId = null"
         />
       </MobileSheet>
     </main>
-    </div>
-  </div>
+    <SuiteFooter />
+  </PageShell>
 </template>

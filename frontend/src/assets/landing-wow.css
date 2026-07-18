@@ -1,0 +1,1314 @@
+/* ═══════════════════════════════════════════════════════════
+   TxBizFinder Intelligence — cinematic landing
+   Palette: graphite + construction orange + amber + gold
+   (no pink / rose / magenta)
+   ═══════════════════════════════════════════════════════════ */
+
+.land-wow {
+  --wow-ink: #18181b;
+  --wow-ink-deep: #09090b;
+  --wow-foam: #fafafa;
+  --wow-muted: rgba(250, 250, 250, 0.58);
+  --wow-accent: #f97316;
+  --wow-accent-dim: #ea580c;
+  --wow-amber: #fb923c;
+  --wow-gold: #f59e0b;
+  --wow-sand: #fdba74;
+  --wow-pad-x: clamp(1rem, 2.5vw, 2.5rem);
+  --wow-max: min(100% - 2 * var(--wow-pad-x), 72rem);
+  --wow-nav-h: 3.75rem;
+  --wow-tap: 44px; /* min touch target */
+
+  position: relative;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow-x: clip;
+  color: var(--wow-foam);
+  background: var(--wow-ink);
+  font-family: "DM Sans", system-ui, sans-serif;
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.land-wow *,
+.land-wow *::before,
+.land-wow *::after {
+  box-sizing: border-box;
+}
+
+.land-wow .locale-toggle,
+.land-wow .theme-toggle {
+  filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.12));
+}
+
+/* ── Stage + canvas background ──────────────────────────── */
+.land-wow__stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: #0c0a09;
+}
+
+.land-wow__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.land-wow__noise {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px;
+  pointer-events: none;
+}
+
+/* Cursor glow — fine pointer only */
+.land-wow__cursor {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .land-wow__cursor {
+    display: block;
+    position: fixed;
+    width: min(28vw, 260px);
+    height: min(28vw, 260px);
+    margin: calc(min(28vw, 260px) / -2) 0 0 calc(min(28vw, 260px) / -2);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(249, 115, 22, 0.2) 0%, transparent 68%);
+    pointer-events: none;
+    z-index: 2;
+    mix-blend-mode: screen;
+    transition: opacity 0.3s ease;
+    will-change: transform;
+  }
+
+  .land-wow__cursor.is-off {
+    opacity: 0;
+  }
+}
+
+/* ── Content shell ──────────────────────────────────────── */
+.land-wow__content {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.land-wow__shell {
+  width: var(--wow-max);
+  max-width: 100%;
+  margin-inline: auto;
+  padding-inline: var(--wow-pad-x);
+}
+
+/* ── Nav ────────────────────────────────────────────────── */
+.land-wow__nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-height: var(--wow-nav-h);
+  padding: 0.55rem var(--wow-pad-x);
+  width: 100%;
+  max-width: min(100%, calc(72rem + 2 * var(--wow-pad-x)));
+  margin-inline: auto;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: linear-gradient(
+    to bottom,
+    rgba(24, 24, 27, 0.92) 0%,
+    rgba(24, 24, 27, 0.72) 70%,
+    rgba(24, 24, 27, 0.2) 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.land-wow__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  text-decoration: none;
+  color: inherit;
+  max-width: min(100%, 16rem);
+}
+
+@media (min-width: 480px) {
+  .land-wow__brand {
+    max-width: min(100%, 22rem);
+  }
+}
+
+.land-wow__brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.land-wow__brand-kicker {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--wow-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.land-wow__brand-name {
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(0.92rem, 2.4vw, 1.05rem);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.land-wow__nav-links {
+  display: none;
+  gap: clamp(1rem, 2vw, 1.75rem);
+  font-size: 0.875rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .land-wow__nav-links {
+    display: flex;
+  }
+}
+
+.land-wow__nav-links a {
+  color: var(--wow-muted);
+  text-decoration: none;
+  padding: 0.35rem 0.15rem;
+  min-height: var(--wow-tap);
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.2s, text-shadow 0.2s;
+}
+
+.land-wow__nav-links a:hover,
+.land-wow__nav-links a:focus-visible,
+.land-wow__nav-links a:active {
+  color: var(--wow-accent);
+  text-shadow: 0 0 16px rgba(249, 115, 22, 0.4);
+}
+
+.land-wow__nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.land-wow__nav-cta {
+  display: none !important;
+}
+
+@media (min-width: 640px) {
+  .land-wow__nav-cta {
+    display: inline-flex !important;
+    padding: 0.5rem 0.95rem !important;
+    font-size: 0.8rem !important;
+    min-height: var(--wow-tap);
+  }
+}
+
+/* ── Hero ───────────────────────────────────────────────── */
+.land-wow__hero {
+  position: relative;
+  width: var(--wow-max);
+  margin: 0 auto;
+  padding:
+    clamp(1.75rem, 5vw, 5rem)
+    var(--wow-pad-x)
+    clamp(2rem, 4vw, 3.5rem);
+  text-align: center;
+}
+
+.land-wow__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  background: rgba(249, 115, 22, 0.08);
+  font-size: clamp(0.62rem, 1.6vw, 0.72rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--wow-accent);
+  animation: wow-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.land-wow__pill-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--wow-accent);
+  box-shadow: 0 0 12px var(--wow-accent);
+  animation: wow-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes wow-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.55;
+  }
+}
+
+.land-wow__title {
+  margin: 1.15rem auto 0;
+  max-width: 18ch;
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(2.15rem, 7.2vw, 5.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  animation: wow-rise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.land-wow__title-line {
+  display: block;
+}
+
+.land-wow__title-line--glow {
+  background: linear-gradient(
+    110deg,
+    #fafafa 0%,
+    #f97316 32%,
+    #f59e0b 58%,
+    #fb923c 82%,
+    #fafafa 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: wow-shimmer 6s linear infinite;
+}
+
+@keyframes wow-shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.land-wow__lede {
+  margin: 1.15rem auto 0;
+  max-width: min(36rem, 100%);
+  font-size: clamp(0.95rem, 2.1vw, 1.2rem);
+  line-height: 1.65;
+  color: var(--wow-muted);
+  animation: wow-rise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+  padding-inline: 0.15rem;
+}
+
+.land-wow__cta-row {
+  margin-top: 1.65rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  align-items: stretch;
+  animation: wow-rise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
+}
+
+.land-wow__cta-row > * {
+  flex: 1 1 auto;
+  min-width: min(100%, 11.5rem);
+  max-width: 20rem;
+  display: flex;
+  justify-content: center;
+}
+
+.land-wow__btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: var(--wow-tap);
+  padding: 0.9rem 1.25rem;
+  border-radius: 999px;
+  font-size: clamp(0.88rem, 1.8vw, 0.95rem);
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s,
+    background 0.2s,
+    border-color 0.2s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.land-wow__btn--primary {
+  color: #18181b;
+  background: linear-gradient(135deg, #f97316, #fdba74 48%, #f59e0b);
+  background-size: 180% 180%;
+  box-shadow:
+    0 0 0 1px rgba(249, 115, 22, 0.28),
+    0 12px 36px -10px rgba(249, 115, 22, 0.5);
+  animation: wow-btn-grad 5s ease infinite;
+}
+
+@keyframes wow-btn-grad {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.land-wow__btn--ghost {
+  color: var(--wow-foam);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Hover = fine pointer; Active = touch + mouse press */
+@media (hover: hover) and (pointer: fine) {
+  .land-wow__btn--primary:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      0 0 0 1px rgba(249, 115, 22, 0.4),
+      0 16px 44px -8px rgba(249, 115, 22, 0.6);
+  }
+
+  .land-wow__btn--ghost:hover {
+    border-color: rgba(249, 115, 22, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 0 22px -6px rgba(249, 115, 22, 0.32);
+  }
+}
+
+.land-wow__btn--primary:active,
+.land-wow__btn--primary.is-pressed {
+  transform: scale(0.97);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.35);
+}
+
+.land-wow__btn--ghost:active,
+.land-wow__btn--ghost.is-pressed {
+  transform: scale(0.97);
+  border-color: rgba(249, 115, 22, 0.55);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.land-wow__btn:focus-visible {
+  outline: 2px solid var(--wow-accent);
+  outline-offset: 3px;
+}
+
+/* ── Suite star 2D (tip always up) + links ───────────────── */
+.land-wow__constellation {
+  position: relative;
+  margin: clamp(1.75rem, 4vw, 3.5rem) auto 0;
+  width: min(100%, 36rem);
+  overflow: visible;
+  animation: wow-rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+}
+
+.land-wow__star-scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  margin-inline: auto;
+  overflow: visible;
+  /* room for label bubbles outside tip dots */
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+  box-sizing: border-box;
+}
+
+.land-wow__star-svg {
+  position: absolute;
+  inset: 8%;
+  width: 84%;
+  height: 84%;
+  margin: auto;
+  z-index: 1;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.land-wow__star-shape {
+  opacity: 0.9;
+}
+
+/* Soft connection lines between tips */
+.land-wow__star-link {
+  stroke: rgba(253, 186, 116, 0.45);
+  stroke-linecap: round;
+  fill: none;
+}
+
+.land-wow__star-link--ring {
+  stroke-width: 0.55;
+  stroke-dasharray: 2.2 5;
+  animation: wow-link-flow 3.2s linear infinite;
+  opacity: 0.55;
+}
+
+.land-wow__star-link--diag {
+  stroke-width: 0.7;
+  stroke-dasharray: 3 6;
+  animation: wow-link-flow 2.4s linear infinite reverse;
+  opacity: 0.7;
+}
+
+@keyframes wow-link-flow {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+.land-wow__constellation--boost .land-wow__star-link--ring {
+  animation-duration: 0.9s;
+  opacity: 0.9;
+}
+
+.land-wow__constellation--boost .land-wow__star-link--diag {
+  animation-duration: 0.7s;
+  opacity: 1;
+}
+
+/* Mobile: MAP core full-width, then tip cards */
+.land-wow__sats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  width: 100%;
+  position: relative;
+  z-index: 4;
+  padding-top: 0.35rem;
+}
+
+.land-wow__sat--core {
+  grid-column: 1 / -1;
+  order: -1;
+}
+
+.land-wow__sat-bubble--core {
+  border-color: rgba(249, 115, 22, 0.45) !important;
+  background: color-mix(in srgb, #f97316 18%, rgba(24, 24, 27, 0.9)) !important;
+  min-height: 2.75rem;
+  font-size: 0.95rem;
+}
+
+.land-wow__sats > .land-wow__sat:not(.land-wow__sat--core):first-of-type {
+  /* no-op: core is first */
+}
+
+.land-wow__sat {
+  position: relative;
+  width: 100%;
+  min-height: var(--wow-tap);
+  z-index: 4;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.92;
+  transition: transform 0.25s ease, box-shadow 0.25s, opacity 0.2s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.land-wow__sat-dot {
+  display: none;
+}
+
+.land-wow__sat-bubble {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0.75rem 0.8rem;
+  border-radius: 1rem;
+  background: rgba(24, 24, 27, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+}
+
+.land-wow__sat-name {
+  display: block;
+  width: 100%;
+  font-size: clamp(0.72rem, 2.2vw, 0.82rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.land-wow__sat-host {
+  display: block;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: clamp(0.55rem, 1.8vw, 0.62rem);
+  color: rgba(250, 250, 250, 0.42);
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.land-wow__sat:active .land-wow__sat-bubble,
+.land-wow__sat.is-active .land-wow__sat-bubble,
+.land-wow__sat:focus-visible .land-wow__sat-bubble {
+  border-color: var(--sat-color, var(--wow-accent));
+  background: color-mix(in srgb, var(--sat-color, var(--wow-accent)) 12%, rgba(24, 24, 27, 0.9));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .land-wow__sat:hover {
+    opacity: 1;
+  }
+
+  .land-wow__sat:hover .land-wow__sat-bubble {
+    border-color: var(--sat-color, var(--wow-accent));
+  }
+}
+
+/* Desktop: colored dots on star tips; label bubbles pushed outward */
+@media (min-width: 640px) {
+  .land-wow__constellation {
+    max-width: min(100%, 42rem);
+    width: min(100%, 42rem);
+  }
+
+  .land-wow__sats {
+    display: block;
+    position: absolute;
+    inset: 0;
+    padding-top: 0;
+    /* room so outward labels are not clipped */
+    overflow: visible;
+  }
+
+  .land-wow__sat--core {
+    grid-column: auto;
+    order: 0;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    min-height: 0;
+    transform: none;
+    z-index: 8;
+  }
+
+  .land-wow__sat-bubble--core {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: clamp(4.25rem, 11vw, 5.5rem);
+    min-height: 2.6rem;
+    transform: translate(-50%, -50%);
+    border-radius: 999px;
+    border: 1px solid rgba(249, 115, 22, 0.55);
+    background: color-mix(in srgb, #f97316 22%, rgba(12, 10, 9, 0.92));
+    box-shadow:
+      0 0 0 3px rgba(12, 10, 9, 0.45),
+      0 0 28px rgba(249, 115, 22, 0.35);
+    letter-spacing: 0.12em;
+  }
+
+  .land-wow__sat {
+    position: absolute;
+    width: 0;
+    height: 0;
+    min-height: 0;
+    transform: none;
+  }
+
+  .land-wow__sat--core:hover .land-wow__sat-bubble--core,
+  .land-wow__sat--core.is-active .land-wow__sat-bubble--core {
+    transform: translate(-50%, -50%) scale(1.08);
+    border-color: #fb923c;
+  }
+
+  /* Tip color point stays on the star vertex */
+  .land-wow__sat-dot {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin: 0;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--sat-color, var(--wow-accent));
+    box-shadow:
+      0 0 0 2px rgba(12, 10, 9, 0.65),
+      0 0 14px var(--sat-color, var(--wow-accent));
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  /* Label button offset away from the colored tip (--out-x / --out-y) */
+  .land-wow__sat-bubble {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: clamp(5.5rem, 12vw, 6.75rem);
+    height: auto;
+    min-height: 2.25rem;
+    padding: 0.45rem 0.55rem;
+    transform: translate(
+      calc(-50% + var(--out-x, 0px)),
+      calc(-50% + var(--out-y, 0px))
+    );
+    transition:
+      border-color 0.25s,
+      box-shadow 0.25s,
+      background 0.25s,
+      transform 0.22s ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .land-wow__sat:hover {
+      z-index: 6;
+    }
+    .land-wow__sat:hover .land-wow__sat-bubble {
+      transform: translate(
+          calc(-50% + var(--out-x, 0px)),
+          calc(-50% + var(--out-y, 0px))
+        )
+        scale(1.06);
+    }
+  }
+
+  .land-wow__sat:active .land-wow__sat-bubble,
+  .land-wow__sat.is-active .land-wow__sat-bubble {
+    transform: translate(
+        calc(-50% + var(--out-x, 0px)),
+        calc(-50% + var(--out-y, 0px))
+      )
+      scale(1.03);
+  }
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  .land-wow__constellation {
+    max-width: min(48vh, 18rem);
+    margin-top: 1rem;
+  }
+
+  .land-wow__hero {
+    padding-block: 1rem 1.25rem;
+  }
+
+  .land-wow__title {
+    font-size: clamp(1.6rem, 6vh, 2.4rem);
+  }
+
+  .land-wow__lede {
+    font-size: 0.88rem;
+    margin-top: 0.65rem;
+  }
+
+  .land-wow__cta-row {
+    margin-top: 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .land-wow__star-link--ring,
+  .land-wow__star-link--diag {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
+
+/* ── Marquee ────────────────────────────────────────────── */
+.land-wow__marquee {
+  margin-top: clamp(1.25rem, 3vw, 2.25rem);
+  overflow: hidden;
+  border-block: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent);
+}
+
+.land-wow__marquee-track {
+  display: flex;
+  width: max-content;
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+  padding: 0.75rem 0;
+  animation: wow-marquee 32s linear infinite;
+}
+
+@keyframes wow-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.land-wow__marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: ui-monospace, monospace;
+  font-size: clamp(0.7rem, 1.6vw, 0.8rem);
+  color: rgba(250, 250, 250, 0.52);
+  white-space: nowrap;
+}
+
+.land-wow__marquee-item span {
+  color: var(--wow-accent);
+  opacity: 0.9;
+}
+
+/* ── Stats ──────────────────────────────────────────────── */
+.land-wow__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  width: var(--wow-max);
+  margin: 0 auto;
+  padding: clamp(1.5rem, 3vw, 2.5rem) var(--wow-pad-x) 0;
+}
+
+@media (min-width: 768px) {
+  .land-wow__stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+}
+
+.land-wow__stat {
+  min-width: 0;
+  padding: clamp(0.85rem, 2vw, 1.15rem) clamp(0.75rem, 1.5vw, 1rem);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  text-align: left;
+  transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .land-wow__stat:hover {
+    transform: translateY(-3px);
+    border-color: rgba(249, 115, 22, 0.38);
+    box-shadow: 0 14px 36px -16px rgba(249, 115, 22, 0.32);
+  }
+}
+
+.land-wow__stat:active {
+  transform: scale(0.98);
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.land-wow__stat-value {
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(1.35rem, 3.2vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  background: linear-gradient(90deg, #fff, #f97316 60%, #f59e0b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.land-wow__stat-label {
+  margin-top: 0.2rem;
+  font-size: clamp(0.7rem, 1.6vw, 0.78rem);
+  color: rgba(250, 250, 250, 0.48);
+  line-height: 1.3;
+}
+
+/* ── Sections / portals ─────────────────────────────────── */
+.land-wow__section {
+  width: var(--wow-max);
+  margin: 0 auto;
+  padding: clamp(2.5rem, 6vw, 4.5rem) var(--wow-pad-x);
+}
+
+.land-wow__section--tight {
+  padding-top: 0;
+}
+
+.land-wow__section-head {
+  max-width: 38rem;
+  margin-bottom: clamp(1.25rem, 3vw, 2rem);
+}
+
+.land-wow__section-kicker {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--wow-gold);
+}
+
+.land-wow__section-title {
+  margin-top: 0.45rem;
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(1.55rem, 4vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+.land-wow__section-sub {
+  margin-top: 0.65rem;
+  color: var(--wow-muted);
+  line-height: 1.6;
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+}
+
+.land-wow__portals {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem;
+}
+
+@media (min-width: 700px) {
+  .land-wow__portals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1400px) {
+  .land-wow__portals {
+    gap: 1.15rem;
+  }
+}
+
+.land-wow__portal {
+  --mx: 50%;
+  --my: 50%;
+  --rx: 0deg;
+  --ry: 0deg;
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: var(--wow-tap);
+  padding: clamp(1.1rem, 2.2vw, 1.45rem);
+  border-radius: 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
+  transition:
+    transform 0.18s ease-out,
+    border-color 0.28s,
+    box-shadow 0.28s,
+    background 0.28s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Tilt only on fine pointers */
+@media (hover: none), (pointer: coarse) {
+  .land-wow__portal {
+    transform: none !important;
+  }
+}
+
+.land-wow__portal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    380px circle at var(--mx) var(--my),
+    color-mix(in srgb, var(--portal-color, #f97316) 20%, transparent),
+    transparent 55%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.land-wow__portal:active::before,
+.land-wow__portal.is-active::before,
+.land-wow__portal:focus-visible::before {
+  opacity: 1;
+}
+
+.land-wow__portal:active,
+.land-wow__portal.is-active,
+.land-wow__portal:focus-visible {
+  border-color: color-mix(in srgb, var(--portal-color, #f97316) 55%, transparent);
+  background: color-mix(in srgb, var(--portal-color, #f97316) 8%, rgba(255, 255, 255, 0.03));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--portal-color, #f97316) 22%, transparent),
+    0 18px 48px -18px color-mix(in srgb, var(--portal-color, #f97316) 38%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .land-wow__portal:hover::before {
+    opacity: 1;
+  }
+
+  .land-wow__portal:hover {
+    border-color: color-mix(in srgb, var(--portal-color, #f97316) 55%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--portal-color, #f97316) 22%, transparent),
+      0 22px 56px -18px color-mix(in srgb, var(--portal-color, #f97316) 38%, transparent);
+  }
+
+  .land-wow__portal:hover .land-wow__portal-cta {
+    gap: 0.65rem;
+  }
+}
+
+.land-wow__portal-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  position: relative;
+  z-index: 1;
+}
+
+.land-wow__portal-icon {
+  width: 2.65rem;
+  height: 2.65rem;
+  flex-shrink: 0;
+  border-radius: 0.8rem;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--portal-color, #f97316) 16%, transparent);
+  color: var(--portal-color, #f97316);
+  border: 1px solid color-mix(in srgb, var(--portal-color, #f97316) 32%, transparent);
+}
+
+.land-wow__portal-host {
+  font-family: ui-monospace, monospace;
+  font-size: clamp(0.58rem, 1.4vw, 0.65rem);
+  color: rgba(250, 250, 250, 0.4);
+  padding: 0.28rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.land-wow__portal-name {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.9rem;
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(1.2rem, 2.6vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.land-wow__portal-blurb {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.4rem;
+  font-size: clamp(0.85rem, 1.7vw, 0.92rem);
+  line-height: 1.55;
+  color: rgba(250, 250, 250, 0.62);
+}
+
+@media (min-width: 700px) {
+  .land-wow__portal-blurb {
+    min-height: 3.1em;
+  }
+}
+
+.land-wow__portal-cta {
+  position: relative;
+  z-index: 1;
+  margin-top: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.5rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--portal-color, #f97316);
+  transition: gap 0.22s;
+}
+
+/* ── Journey ────────────────────────────────────────────── */
+.land-wow__journey {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 560px) {
+  .land-wow__journey {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .land-wow__journey {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.land-wow__step {
+  position: relative;
+  min-width: 0;
+  padding: 1.1rem 0.95rem 1.05rem 1.05rem;
+  border-radius: 1.05rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+  transition: border-color 0.25s, transform 0.25s;
+}
+
+.land-wow__step::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, #f97316, #f59e0b);
+  opacity: 0.9;
+}
+
+.land-wow__step:active {
+  transform: scale(0.99);
+  border-color: rgba(249, 115, 22, 0.35);
+}
+
+.land-wow__step-n {
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: 1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.38), transparent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.land-wow__step-title {
+  margin-top: 0.45rem;
+  font-weight: 700;
+  font-size: clamp(0.92rem, 1.8vw, 0.98rem);
+}
+
+.land-wow__step-body {
+  margin-top: 0.3rem;
+  font-size: clamp(0.8rem, 1.6vw, 0.85rem);
+  line-height: 1.5;
+  color: rgba(250, 250, 250, 0.55);
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+.land-wow__footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  width: var(--wow-max);
+  margin: 0 auto;
+  padding: clamp(1.75rem, 4vw, 2.75rem) var(--wow-pad-x) calc(2rem + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.land-wow__footer .land-wow__brand {
+  max-width: min(100%, 20rem);
+}
+
+.land-wow__footer-meta {
+  font-family: ui-monospace, monospace;
+  font-size: clamp(0.62rem, 1.4vw, 0.72rem);
+  color: rgba(250, 250, 250, 0.35);
+  line-height: 1.4;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* ── Reveal ─────────────────────────────────────────────── */
+.land-wow__reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.land-wow__reveal.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.land-wow__reveal.d1 {
+  transition-delay: 0.05s;
+}
+.land-wow__reveal.d2 {
+  transition-delay: 0.1s;
+}
+.land-wow__reveal.d3 {
+  transition-delay: 0.15s;
+}
+.land-wow__reveal.d4 {
+  transition-delay: 0.2s;
+}
+
+@keyframes wow-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Large / retina desktops (2K · 3K · 4K · 5K) ─────────── */
+@media (min-width: 1600px) {
+  .land-wow {
+    --wow-max: min(100% - 2 * var(--wow-pad-x), 80rem);
+    --wow-pad-x: clamp(1.5rem, 3vw, 3.5rem);
+  }
+
+  .land-wow__title {
+    font-size: clamp(3.5rem, 5.2vw, 5.75rem);
+  }
+
+  .land-wow__constellation {
+    max-width: min(100%, 34rem);
+  }
+}
+
+@media (min-width: 2200px) {
+  .land-wow {
+    --wow-max: min(100% - 2 * var(--wow-pad-x), 92rem);
+  }
+
+  .land-wow__title {
+    font-size: clamp(4rem, 4.5vw, 6.25rem);
+  }
+
+  .land-wow__aurora {
+    opacity: 0.9;
+  }
+}
+
+@media (min-width: 3000px) {
+  .land-wow {
+    --wow-max: min(100% - 2 * var(--wow-pad-x), 110rem);
+    --wow-pad-x: clamp(2rem, 4vw, 5rem);
+  }
+
+  .land-wow__section-title {
+    font-size: clamp(2.2rem, 2.4vw, 3.25rem);
+  }
+}
+
+/* Ultra-wide short (desktop landscape dashboards) */
+@media (min-width: 1200px) and (max-height: 700px) {
+  .land-wow__hero {
+    padding-block: 1.5rem 2rem;
+  }
+
+  .land-wow__constellation {
+    max-width: min(38vh, 22rem);
+  }
+}
+
+/* iPad portrait / tablet mid */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .land-wow__constellation {
+    max-width: min(100%, 26rem);
+  }
+
+  .land-wow__sat {
+    width: 6.5rem;
+  }
+}
+
+/* Safe areas (notch / home indicator) */
+@supports (padding: max(0px)) {
+  .land-wow__nav {
+    padding-left: max(var(--wow-pad-x), env(safe-area-inset-left));
+    padding-right: max(var(--wow-pad-x), env(safe-area-inset-right));
+    padding-top: max(0.55rem, env(safe-area-inset-top));
+  }
+
+  .land-wow__hero,
+  .land-wow__stats,
+  .land-wow__section,
+  .land-wow__footer {
+    padding-left: max(var(--wow-pad-x), env(safe-area-inset-left));
+    padding-right: max(var(--wow-pad-x), env(safe-area-inset-right));
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .land-wow__noise,
+  .land-wow__marquee-track,
+  .land-wow__title-line--glow,
+  .land-wow__btn--primary,
+  .land-wow__core,
+  .land-wow__pill-dot,
+  .land-wow__sat-dot {
+    animation: none !important;
+  }
+
+  .land-wow__reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .land-wow__portal {
+    transform: none !important;
+  }
+
+  .land-wow__btn,
+  .land-wow__sat,
+  .land-wow__stat {
+    transition: none !important;
+  }
+}

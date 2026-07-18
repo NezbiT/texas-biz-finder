@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     processed_duckdb_path: Path = Path("data/processed/texas_leads.duckdb")       # base DuckDB para la API
     serve_frontend: bool = False                                     # ¿servir el build del frontend en el mismo puerto?
     frontend_dist_path: Path = Path("frontend/dist")                 # dónde está ese build
+    # Suite product URLs (docs / future BFF). Frontend uses VITE_SUITE_* twin keys.
+    suite_www_url: str = "https://www.txbizfinder.com"
+    suite_radar_url: str = "https://radar.txbizfinder.com"
+    suite_channel_url: str = "https://channel.txbizfinder.com"
+    suite_sentinel_url: str = "https://sentinel.txbizfinder.com"
 
     @property
     def use_csv_backend(self) -> bool:
