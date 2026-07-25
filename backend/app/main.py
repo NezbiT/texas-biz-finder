@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,14 +27,34 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
-# CORS: permite que el frontend en otro puerto/origen llame a esta API
+# CORS: orígenes explícitos (nunca "*" con credentials)
+_cors = list(settings.cors_origins) + [
+    "http://127.0.0.1:3015",
+    "http://localhost:3015",
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=sorted(set(_cors)),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "Accept"],
+    max_age=600,
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "geolocation=(), microphone=(), camera=()",
+    )
+    return response
 
 # Los dos grupos de endpoints: /api/leads/* y /api/leads/*/website-*
 app.include_router(leads_router)
@@ -45,6 +65,129 @@ app.include_router(website_research_router)
 def health() -> dict[str, str]:
     """Ping de salud (lo usan los scripts de arranque y el hosting)."""
     return {"status": "ok", "app": settings.app_name}
+
+
+@app.get("/api/legal")
+def legal_notices() -> dict:
+    """Machine-readable legal notices for UI footers and API clients (not legal advice)."""
+    return {
+        "product": "texas-biz-finder",
+        "asOf": "2026-07-24",
+        "jurisdiction": "Texas, United States",
+        "notLegalAdvice": True,
+        "disclaimers": {
+            "general": (
+                "Informational only. Derived from public filings and optional web research. "
+                "Not a credit, compliance, or background check. Not insurance or legal advice."
+            ),
+            "contact": (
+                "If you contact leads, you must comply with TCPA, CAN-SPAM, and applicable "
+                "state solicitation rules. Obtain consent where required."
+            ),
+            "privacy": (
+                "We may process IP addresses, API keys, saved search criteria, and account "
+                "emails. California residents may have CCPA rights. See /api/legal and product Privacy page."
+            ),
+            "dataSources": (
+                "Public open data (e.g. data.texas.gov). Website research is best-effort and "
+                "may be incomplete or outdated. Do not scrape third-party commercial listings."
+            ),
+        },
+        "termsUrl": "/legal/terms",
+        "privacyUrl": "/legal/privacy",
+        "contact": "legal@txbizfinder.com",
+    }
+
+
+@app.get("/api/suite/meta")
+def suite_meta() -> dict:
+    """Suite metadata + data catalog (roadmap §3.3 / §6)."""
+    return {
+        "suite": "txbizfinder-intelligence",
+        "product": "texas-biz-finder",
+        "productName": "TxBizFinder",
+        "domain": "finder.txbizfinder.com",
+        "apiVersion": "1.0.1",
+        "mapHubLayer": "finder",
+        "defaultPort": 8000,
+        "legal": "/api/legal",
+        "disclaimer": (
+            "Leads from public filings + best-effort web research. Not a credit check. "
+            "Comply with TCPA/CAN-SPAM when contacting."
+        ),
+        "dataPath": {
+            "now": [
+                "data.texas.gov franchise tax bulk",
+                "TABC mixed beverage Socrata join",
+                "DuckDuckGo + Playwright website research",
+            ],
+            "next": ["Wayback Machine API for domain history", "bulk geocode enrichment"],
+        },
+        "dataSources": [
+            {
+                "id": "data-texas-gov",
+                "name": "data.texas.gov (Socrata)",
+                "url": "https://data.texas.gov/",
+                "auth": "free",
+                "use": "Franchise tax ~3.3M",
+                "status": "live",
+                "validation": "high",
+                "confidence": "agency_open_data",
+                "cadence": "periodic_bulk",
+                "demo": False,
+            },
+            {
+                "id": "tabc-mixed-beverage",
+                "name": "TABC mixed beverage",
+                "url": "https://data.texas.gov/",
+                "auth": "free_socrata",
+                "use": "Alcohol receipts join",
+                "status": "live",
+                "validation": "high",
+                "confidence": "agency_open_data",
+                "cadence": "periodic",
+                "demo": False,
+            },
+            {
+                "id": "ddg-playwright",
+                "name": "DuckDuckGo HTML + Playwright",
+                "url": None,
+                "auth": "public_html",
+                "use": "Lead website discovery / deep analysis",
+                "status": "live",
+                "validation": "medium",
+                "confidence": "best_effort_scrape",
+                "cadence": "on_demand",
+                "demo": False,
+                "notes": "1 concurrent job; aggressive rate limit; internal lead-gen only",
+            },
+            {
+                "id": "wayback",
+                "name": "Wayback Machine API",
+                "url": "https://archive.org/help/wayback_api.php",
+                "auth": "free_api",
+                "use": "Domain history",
+                "status": "partial",
+                "validation": "medium",
+                "confidence": "agency_open_data",
+                "cadence": "on_demand",
+                "demo": False,
+                "notes": "Use API; do not scrape UI",
+            },
+        ],
+        "scrapingPolicy": {
+            "justified": [
+                "DuckDuckGo HTML for website discovery (internal lead-gen)",
+                "Playwright deep analysis of candidate sites (1 concurrent job)",
+            ],
+            "possible": ["Wayback API for domain history (not UI scrape)"],
+            "forbidden": [
+                "data.texas.gov HTML tables (use SODA JSON)",
+                "Yelp / commercial listings (ToS + legal)",
+                "CAPTCHA / paywall bypass",
+            ],
+        },
+    }
 
 
 def _mount_frontend(dist: Path) -> None:
@@ -66,7 +209,7 @@ def _mount_frontend(dist: Path) -> None:
     @app.get("/{full_path:path}", include_in_schema=False)
     async def frontend_spa(full_path: str) -> FileResponse:
         # Catch-all de la SPA: nunca interceptar la API ni /health
-        if full_path.startswith("api") or full_path == "health":
+        if full_path.startswith("api") or full_path in ("health",):
             raise HTTPException(status_code=404)
         # Archivo real (favicon, manifest…) → servirlo tal cual
         candidate = dist / full_path

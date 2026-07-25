@@ -51,3 +51,19 @@ Build next:
 ## Auth for leads API today
 
 `X-API-Key` on `/api/leads/*` — rotate `ADMIN_API_KEY` before public tunnel.
+
+## Data sources (priority — roadmap §6)
+
+| Priority API / open data | Scrape |
+|--------------------------|--------|
+| data.texas.gov franchise tax (~3.3M) + TABC mixed beverage Socrata | DDG HTML + Playwright website research (1 concurrent job; internal lead-gen) |
+
+Full catalog: [DATA_SOURCES_PUBLIC.md](./DATA_SOURCES_PUBLIC.md) (§3.3 permits/business/geo, §4 scraping policy).  
+Suite index: `../txbizfinder-suite/docs/DATA_ROADMAP.md`.
+
+### Confidence
+
+- **Agency open data:** franchise tax, TABC receipts  
+- **Best-effort scrape / research:** DuckDuckGo discovery + Playwright (not governmental data)  
+- **Do not scrape:** Socrata HTML tables (use SODA), Yelp/commercial listings  
+
