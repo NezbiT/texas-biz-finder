@@ -19,7 +19,7 @@ KEY_FILES = [
     "scripts/ingest_texas_data.py",
     "scripts/process_leads.py",
     "scripts/verify_goal.py",
-    "frontend/src/components/LeadsDashboard.vue",
+    "frontend-v2/app/components/LeadsDashboard.vue",
     "backend/tests/test_ingest_download.py",
     "backend/tests/fixtures/texas_open_data_sample.json",
 ]

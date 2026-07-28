@@ -1,16 +1,16 @@
 # Router principal de leads: /api/leads (stats, búsqueda, export, mark, upsert).
-# Cada endpoint elige el backend de datos según settings (supabase/bulk/sqlite).
-import csv   # generación del export CSV
-import io    # buffer en memoria para el CSV
+# Cada endpoint usa data_backend unificado (supabase / csv+DuckDB / sqlite).
+import csv
+import io
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, func, select
+from sqlmodel import Session, select
 
 from backend.app.config import settings
-from backend.app.core.auth import require_admin           # auth por X-API-Key
-from backend.app.database import get_session              # sesión DB por request
+from backend.app.core.auth import require_admin
+from backend.app.database import get_session
 from backend.app.models.lead import Lead
 from backend.app.schemas.lead import (
     LeadExport,
@@ -20,35 +20,27 @@ from backend.app.schemas.lead import (
     LeadSearchParams,
     LeadUpsertRequest,
 )
-from backend.app.services import csv_lead_store            # backend bulk (DuckDB)
-from backend.app.services.lead_research_resolver import merge_sqlite_website_fields
-from backend.app.services.lead_search import (              # backend SQL unificado
-    search_leads as execute_lead_search,
-    search_leads_page as execute_lead_search_page,
-)
-from scripts.common.geocoding import geocode_lead           # helpers del pipeline
+from backend.app.services import data_backend
+from scripts.common.geocoding import geocode_lead
 from scripts.common.qualification import qualify_lead
 from scripts.common.website_analysis import analyze_website
 
-# Todos los endpoints cuelgan de /api/leads
 router = APIRouter(prefix="/api/leads", tags=["leads"])
 
 
 def _search_params(
-    # Dependencia que agrupa/valida los query params de búsqueda:
-    q: str | None = None,                                       # texto libre
-    city: str | None = None,                                    # ciudad
-    zip_code: str | None = None,                                # ZIP (o prefijo)
-    radius_miles: float | None = Query(default=None, ge=1, le=50),   # radio 1-50 mi
-    county: str | None = None,                                  # condado
-    industry: str | None = None,                                # industria
-    qualified_only: bool = True,                                # solo calificados
-    small_business_only: bool = True,                           # solo pequeños
-    sells_alcohol_only: bool = False,                           # solo TABC
-    limit: int = Query(default=50, ge=1, le=500),               # tamaño de página
-    offset: int = Query(default=0, ge=0),                       # desplazamiento
+    q: str | None = None,
+    city: str | None = None,
+    zip_code: str | None = None,
+    radius_miles: float | None = Query(default=None, ge=1, le=50),
+    county: str | None = None,
+    industry: str | None = None,
+    qualified_only: bool = True,
+    small_business_only: bool = True,
+    sells_alcohol_only: bool = False,
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> LeadSearchParams:
-    # Empaqueta todo en el schema que entienden los buscadores
     return LeadSearchParams(
         q=q,
         city=city,
@@ -67,48 +59,10 @@ def _search_params(
 @router.get("/stats")
 def lead_stats(
     session: Session = Depends(get_session),
-    _: str = Depends(require_admin),   # solo valida la key; el valor no se usa
+    _: str = Depends(require_admin),
 ) -> dict[str, int]:
     """Totales de la base — la UI los muestra en el header como contexto."""
-    # Backend Supabase: 4 COUNTs directos sobre la tabla leads
-    if settings.use_supabase_backend:
-        total = session.exec(select(func.count()).select_from(Lead)).one()
-        qualified = session.exec(
-            select(func.count()).select_from(Lead).where(Lead.is_qualified.is_(True))
-        ).one()
-        small_business = session.exec(
-            select(func.count()).select_from(Lead).where(Lead.is_small_business.is_(True))
-        ).one()
-        sells_alcohol = session.exec(
-            select(func.count()).select_from(Lead).where(Lead.sells_alcohol.is_(True))
-        ).one()
-        return {
-            "total": total,
-            "qualified": qualified,
-            "small_business": small_business,
-            "sells_alcohol": sells_alcohol,
-        }
-
-    # Backend bulk: totales precalculados (jamás escanea los CSVs gigantes)
-    if settings.use_csv_backend:
-        csv_stats = csv_lead_store.lead_stats()
-        if csv_stats["total"] > 0 or csv_lead_store.processed_data_ready():
-            return csv_stats
-
-    # Fallback SQLite puro (datasets chicos de demo)
-    total = session.exec(select(func.count()).select_from(Lead)).one()
-    qualified = session.exec(
-        select(func.count()).select_from(Lead).where(Lead.is_qualified.is_(True))
-    ).one()
-    small_business = session.exec(
-        select(func.count()).select_from(Lead).where(Lead.is_small_business.is_(True))
-    ).one()
-    return {
-        "total": total,
-        "qualified": qualified,
-        "small_business": small_business,
-        "sells_alcohol": 0,   # el modo SQLite legacy no tiene cruce TABC
-    }
+    return data_backend.lead_stats(session)
 
 
 @router.get("", response_model=LeadSearchPage)
@@ -118,18 +72,10 @@ def search_leads(
     _: str = Depends(require_admin),
 ) -> LeadSearchPage:
     """La búsqueda principal (paginada) — el corazón de la app."""
-    if settings.use_supabase_backend:
-        return execute_lead_search_page(session, params)
-    if settings.use_csv_backend and csv_lead_store.processed_data_ready():
-        # Bulk: busca en DuckDB y superpone el research guardado en SQLite
-        page = csv_lead_store.search_leads_page(params)
-        page.items = merge_sqlite_website_fields(session, page.items)
-        return page
-    return execute_lead_search_page(session, params)   # fallback SQLite
+    return data_backend.search_leads_page(session, params)
 
 
 def _export_search_params(
-    # Igual que _search_params pero con límite alto (hasta 5000) y sin offset
     q: str | None = None,
     city: str | None = None,
     zip_code: str | None = None,
@@ -152,7 +98,7 @@ def _export_search_params(
         small_business_only=small_business_only,
         sells_alcohol_only=sells_alcohol_only,
         limit=limit,
-        offset=0,   # el export siempre arranca desde el principio
+        offset=0,
     )
 
 
@@ -162,9 +108,8 @@ def export_leads_json(
     session: Session = Depends(get_session),
     _: str = Depends(require_admin),
 ) -> LeadExport:
-    """Export JSON de la búsqueda actual (con marca de tiempo)."""
-    export_params = params
-    leads = execute_lead_search(session, export_params)
+    """Export JSON de la búsqueda actual (misma fuente que /api/leads)."""
+    leads = data_backend.search_leads_list(session, params)
     return LeadExport(
         exported_at=datetime.now(timezone.utc),
         total=len(leads),
@@ -178,18 +123,9 @@ def export_leads_csv(
     session: Session = Depends(get_session),
     _: str = Depends(require_admin),
 ) -> StreamingResponse:
-    """Export CSV descargable (el botón "Export CSV" del frontend)."""
-    # Obtiene los leads del backend activo (misma lógica que la búsqueda)
-    if settings.use_supabase_backend:
-        leads = execute_lead_search(session, params)
-    elif settings.use_csv_backend and csv_lead_store.processed_data_ready():
-        page = csv_lead_store.search_leads_page(params)
-        leads = page.items
-    else:
-        export_params = params
-        leads = execute_lead_search(session, export_params)
+    """Export CSV descargable (el botón Export CSV del frontend)."""
+    leads = data_backend.search_leads_list(session, params)
 
-    # Escribe el CSV en memoria con las columnas útiles para ventas
     buffer = io.StringIO()
     writer = csv.DictWriter(
         buffer,
@@ -215,10 +151,10 @@ def export_leads_csv(
             "is_qualified",
             "qualification_score",
             "qualification_notes",
+            "sells_alcohol",
         ],
     )
     writer.writeheader()
-    # Una fila por lead, campo a campo (mismo orden que fieldnames)
     for lead in leads:
         writer.writerow(
             {
@@ -243,10 +179,10 @@ def export_leads_csv(
                 "is_qualified": lead.is_qualified,
                 "qualification_score": lead.qualification_score,
                 "qualification_notes": lead.qualification_notes,
+                "sells_alcohol": lead.sells_alcohol,
             }
         )
 
-    # Respuesta como descarga adjunta (el navegador guarda texas_leads.csv)
     buffer.seek(0)
     return StreamingResponse(
         iter([buffer.getvalue()]),
@@ -256,9 +192,7 @@ def export_leads_csv(
 
 
 def _apply_qualification(lead: Lead) -> Lead:
-    """Re-corre las heurísticas de calificación (sitio, redes, tamaño) y
-    vuelca el resultado en los campos del lead."""
-    website = analyze_website(lead.website_url)   # análisis ligero del sitio
+    website = analyze_website(lead.website_url)
     result = qualify_lead(
         website_url=lead.website_url,
         facebook_url=lead.facebook_url,
@@ -267,7 +201,6 @@ def _apply_qualification(lead: Lead) -> Lead:
         max_employees=settings.max_employees_small_biz,
         website_analysis=website,
     )
-    # Copia campo a campo el veredicto de la calificación
     lead.has_website = result.has_website
     lead.website_reachable = result.website_reachable
     lead.has_modern_website = result.has_modern_website
@@ -285,7 +218,6 @@ def _apply_qualification(lead: Lead) -> Lead:
 
 
 def _apply_geocoding(lead: Lead) -> Lead:
-    """Resuelve lat/lng por ciudad/ZIP (para la búsqueda por radio)."""
     lat, lng = geocode_lead(lead.city, lead.zip_code)
     lead.latitude = lat
     lead.longitude = lng
@@ -305,7 +237,7 @@ def mark_lead(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
 
     lead.is_qualified = body.is_qualified
-    if body.qualification_notes is not None:   # las notas solo si vinieron
+    if body.qualification_notes is not None:
         lead.qualification_notes = body.qualification_notes
     lead.updated_at = datetime.now(timezone.utc)
     session.add(lead)
@@ -321,21 +253,18 @@ def upsert_lead(
     _: str = Depends(require_admin),
 ) -> Lead:
     """Crea o actualiza un lead (por external_id) y re-corre la calificación."""
-    # ¿Ya existe? — external_id es la clave estable entre backends
     existing = session.exec(
         select(Lead).where(Lead.external_id == body.external_id)
     ).first()
 
     now = datetime.now(timezone.utc)
     if existing:
-        # Actualización parcial: solo los campos que el cliente envió
         lead = existing
         updates = body.model_dump(exclude_unset=True)
-        updates.pop("external_id", None)   # la clave no se cambia
+        updates.pop("external_id", None)
         for field, value in updates.items():
             setattr(lead, field, value)
     else:
-        # Creación: nombre y ciudad son obligatorios
         payload = body.model_dump()
         if not payload.get("name") or not payload.get("city"):
             raise HTTPException(
@@ -349,7 +278,6 @@ def upsert_lead(
             created_at=now,
         )
 
-    # Re-califica y geocodifica antes de guardar
     _apply_qualification(lead)
     _apply_geocoding(lead)
     session.add(lead)

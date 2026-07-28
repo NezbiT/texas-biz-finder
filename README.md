@@ -25,8 +25,9 @@ Monorepo para encontrar y calificar **pequeños negocios en Texas** — con o si
 | **Lectura rápida** | CSV (archivo) + DuckDB (API) + JSON (stats) — sin escanear millones por request |
 | **Paginación** | 50 leads por página en UI y API (`limit` + `offset`) |
 | **UI** | Dark/light, logo TX BizFinder, i18n **EN** por defecto + toggle **ES** |
-| **Prod local** | `python run.py --prod` — API + frontend en un puerto |
-| **Dominio** | Cloudflare → `www.txbizfinder.com` |
+| **Frontend** | Nuxt 4 (SSR) + Tailwind v4 en `frontend-v2/`, desplegado en Vercel |
+| **Prod local** | `python run.py --prod` — solo la API (`:8000`) |
+| **Dominio** | Un solo host path-based: `www.txbizfinder.com/{app,radar,api,…}` (sin tunnel a PC) |
 | **Filtros** | Calificados, industria, ciudad/ZIP, radio, **solo venden alcohol (TABC)** |
 | **Website research** | DuckDuckGo + Playwright por lead (1 análisis a la vez) |
 
@@ -56,11 +57,16 @@ TexasBizFinder/                 # repo folder (interno)
 │   │       ├── playwright_analyzer.py
 │   │       └── duckduckgo_search.py
 │   └── tests/                  # 41 tests
-├── frontend/
-│   └── src/
-│       ├── components/         # LeadsDashboard, AppLogo, LocaleToggle, ThemeToggle
-│       ├── composables/        # useI18n, useTheme
-│       └── i18n/               # en.ts, es.ts
+├── frontend-v2/                # Nuxt 4 + Tailwind v4 (SSR) — el frontend activo
+│   ├── app/
+│   │   ├── pages/              # index (landing de la suite), app (dashboard)
+│   │   ├── components/         # SuiteLanding, LeadsDashboard, TexasTopoCanvas…
+│   │   ├── composables/        # useApi, useLeadsApi, useSuite, useTheme…
+│   │   ├── config/suite.ts     # catálogo estático de los 7 productos
+│   │   └── assets/css/         # style.css (@theme de marca) + landing-wow.css
+│   └── i18n/locales/           # en.json, es.json (155 claves cada uno)
+├── archive/
+│   └── frontend-vite/          # frontend Vue 3 + Vite anterior (retirado, se conserva)
 ├── data/
 │   ├── raw/                    # CSV masivos (gitignored, generados)
 │   ├── processed/              # CSV + DuckDB + bulk_stats.json (gitignored)
@@ -89,8 +95,9 @@ python -m venv .venv
 pip install -e ".[dev]"
 playwright install chromium   # solo si usas website research
 
-cd frontend && npm install && cd ..
+cd frontend-v2 && npm install && cd ..
 copy .env.example .env
+copy frontend-v2\.env.example frontend-v2\.env
 ```
 
 ## Acceso remoto con Tailscale (gratis)
@@ -99,74 +106,75 @@ Deja la app en tu PC y ábrela desde el celular u otra máquina en tu tailnet:
 
 ```powershell
 .\start-tailscale.ps1
-# En el otro dispositivo: http://<tu-ip-tailscale>:5173
+# En el otro dispositivo: http://<tu-ip-tailscale>:3000
 ```
 
 ## Arrancar
 
-### Producción local (recomendado — un solo puerto)
+Son dos procesos: la API (FastAPI) y el frontend (Nuxt). El `devProxy` de Nuxt
+reenvía `/api/**` a `:8000`, así que el navegador siempre habla con un solo
+origen y no hay CORS de por medio.
+
+**API (sin seed demo — usa DuckDB real si ya corriste el pipeline):**
 
 ```bash
-python run.py --prod --build    # primera vez o si cambiaste UI
-python run.py --prod --no-seed  # uso diario
+python run.py
+# Producción / Oracle:
+# python run.py --prod
+# docker compose up -d --build
 ```
 
-→ http://127.0.0.1:8000 (UI + API)
-
-### Desarrollo (hot reload UI)
-
-**Backend:**
+**Datos de producción (bulk, no demo):**
 
 ```bash
-python run.py --no-seed
+python -m scripts.bulk_pipeline all
+# genera data/processed/texas_leads.duckdb + bulk_stats.json
 ```
 
 **Frontend:**
 
 ```bash
-cd frontend
+cd frontend-v2
 npm run dev
 ```
 
-- UI: http://127.0.0.1:5173  
+- UI: http://127.0.0.1:3000  
 - API: http://127.0.0.1:8000  
+- Health: http://127.0.0.1:8000/health  
 
-## Cloudflare / dominio
+### Deploy
 
-Dominio: **www.txbizfinder.com** (cuenta Cloudflare)
+| Pieza | Dónde | Guía |
+|-------|--------|------|
+| Frontend Nuxt | **Vercel** (`frontend-v2/`) | `vercel.json` + `NUXT_API_PROXY_URL` (Oracle) |
+| Backend FastAPI | **Oracle Free Tier** | `deploy/oracle/README.md` |
+| Edge / paths | **Cloudflare Worker** | `deploy/cloudflare/README.md` — **sin tunnel a tu PC** |
 
-### Opción A — Tunnel desde tu PC (sin VPS, costo ~$0)
+### Paths públicos (un solo dominio)
 
-Expone tu instancia local con HTTPS y PWA instalable. Ideal mientras el DuckDB vive en tu máquina.
+| Path | Producto |
+|------|----------|
+| `/` · `/app` | TxBizFinder (landing + dashboard) |
+| `/api/*` · `/health` | FastAPI (Oracle) |
+| `/radar` | PermitRadar |
+| `/channel` | ChannelWatch |
+| `/sentinel` | Emissions Sentinel |
+| `/flood` | FloodGuard Texas |
+| `/power` | PowerPulse Texas |
+| `/map` | Map Hub Texas |
 
-**Requisitos:** dominio `txbizfinder.com` en Cloudflare, `cloudflared` instalado.
+### Cloudflare (path router, no tunnel)
 
-```powershell
-# 1) Instalar cloudflared (una vez)
-winget install Cloudflare.cloudflared
-
-# 2) Configurar tunnel (una vez; abre el navegador para login)
-.\scripts\setup-cloudflare-tunnel.ps1
-
-# 3) Arrancar prod + tunnel (cada vez que quieras publicar)
-.\start-cloudflare.ps1
-# o reconstruir frontend antes:
-.\start-cloudflare.ps1 -Rebuild
+```bash
+cd deploy/cloudflare
+npx wrangler deploy
+npx wrangler secret put API_ORIGIN   # HTTPS del FastAPI en Oracle
 ```
 
-En el dashboard Cloudflare:
+Adjunta dominios `www.txbizfinder.com` y `txbizfinder.com` al Worker.
+Apaga/elimina el tunnel antiguo de Zero Trust y los DNS `*.cfargotunnel.com`.
 
-- **SSL/TLS** → Full (strict)
-- **Rules** → redirect opcional `txbizfinder.com` → `https://www.txbizfinder.com`
-
-La PC debe permanecer encendida con el script en ejecución.
-
-### Opción B — VPS (siempre encendido)
-
-1. `python run.py --prod --build` en el servidor
-2. Cloudflare DNS → IP del VPS (proxy naranja ON)
-3. SSL: Full (strict)
-4. Sube `data/processed/texas_leads.duckdb` al servidor
+En Vercel (finder): `NUXT_PUBLIC_ADMIN_API_KEY` + `NUXT_API_PROXY_URL=<Oracle HTTPS>`.
 
 ## Pipeline masivo (3.36M negocios)
 

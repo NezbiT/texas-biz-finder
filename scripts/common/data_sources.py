@@ -245,9 +245,9 @@ def demo_seed_records() -> list[RawBusinessRecord]:
 def merge_records(
     downloaded: list[RawBusinessRecord],
     *,
-    include_demo_seed: bool = True,
+    include_demo_seed: bool = False,
 ) -> list[RawBusinessRecord]:
-    """Merge downloaded public data with demo seed, deduping by external_id."""
+    """Merge downloaded public data with optional demo seed, deduping by external_id."""
     merged: dict[str, RawBusinessRecord] = {
         record.external_id: record for record in downloaded
     }

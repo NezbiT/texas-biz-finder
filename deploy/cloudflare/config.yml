@@ -1,0 +1,22 @@
+# RETIRED — Cloudflare Tunnel to a home PC is no longer used.
+#
+# Path-based routing lives in:
+#   deploy/cloudflare/path-router.worker.js
+#   deploy/cloudflare/wrangler.toml
+#   deploy/cloudflare/README.md
+#
+# Products:
+#   https://www.txbizfinder.com/app
+#   https://www.txbizfinder.com/radar
+#   https://www.txbizfinder.com/channel
+#   https://www.txbizfinder.com/sentinel
+#   https://www.txbizfinder.com/flood
+#   https://www.txbizfinder.com/power
+#   https://www.txbizfinder.com/map
+#   https://www.txbizfinder.com/api  → Oracle Free Tier FastAPI
+#
+# Do not run cloudflared against this file for production.
+tunnel: RETIRED-DO-NOT-USE
+credentials-file: RETIRED
+ingress:
+  - service: http_status:404

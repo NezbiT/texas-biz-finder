@@ -31,8 +31,8 @@ frontend/.fallow/
 .vscode/
 *.swp
 
-# Cloudflare Tunnel (generated locally per machine)
-deploy/cloudflare/config.yml
+# Old tunnel credentials (never commit secrets). Path router Worker is tracked.
+# deploy/cloudflare/config.yml is retired stub (safe to commit).
 
 # OS
 .DS_Store

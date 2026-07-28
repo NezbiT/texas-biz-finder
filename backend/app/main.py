@@ -1,5 +1,5 @@
 # Punto de entrada de la API FastAPI de TX BizFinder:
-# monta CORS, los routers de leads/research y (opcional) el frontend estático.
+# monta CORS, los routers de leads/research y health de suite.
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -11,28 +11,53 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.config import settings
 from backend.app.database import init_db
 from backend.app.routers import leads_router, website_research_router
+from backend.app.services import csv_lead_store, data_backend
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Arranque/cierre de la app: valida config e inicializa la base."""
-    # Guardia de configuración: el backend supabase exige una URL de Postgres
     if settings.use_supabase_backend and not settings.is_postgres:
         raise RuntimeError(
-            "DATA_BACKEND=supabase requires DATABASE_URL=postgresql://... (Supabase connection string)"
+            "DATA_BACKEND=supabase requires DATABASE_URL=postgresql://... "
+            "(use the pooler URI on port 6543 when available)"
         )
-    init_db()   # crea tablas si no existen (SQLite/Postgres)
-    yield       # ← aquí corre la app; después del yield iría el cleanup
+    if settings.is_production:
+        key = (settings.admin_api_key or "").strip()
+        if not key or key in {
+            "",
+            "admin-dev-key-change-me",
+            "changeme",
+            "secret",
+            "password",
+        }:
+            raise RuntimeError(
+                "APP_ENV=production requires a strong ADMIN_API_KEY "
+                "(not the default admin-dev-key-change-me)"
+            )
+    init_db()
+    yield
+    csv_lead_store.close_connection()
 
 
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app = FastAPI(
+    title=settings.app_name,
+    version="3.1.0",
+    lifespan=lifespan,
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+)
 
 # CORS: orígenes explícitos (nunca "*" con credentials)
 _cors = list(settings.cors_origins) + [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
     "http://127.0.0.1:3015",
     "http://localhost:3015",
     "http://127.0.0.1:5173",
     "http://localhost:5173",
+    "https://www.txbizfinder.com",
+    "https://txbizfinder.com",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -56,15 +81,33 @@ async def security_headers(request: Request, call_next):
     )
     return response
 
-# Los dos grupos de endpoints: /api/leads/* y /api/leads/*/website-*
+
 app.include_router(leads_router)
 app.include_router(website_research_router)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    """Ping de salud (lo usan los scripts de arranque y el hosting)."""
-    return {"status": "ok", "app": settings.app_name}
+def health() -> dict:
+    """Ping de salud + estado del backend de datos (suite smoke / Oracle)."""
+    ready = data_backend.data_ready()
+    duckdb_path = settings.processed_duckdb_path
+    return {
+        "status": "ok" if ready or settings.use_sqlite_backend or settings.use_supabase_backend else "degraded",
+        "app": settings.app_name,
+        "product": "texas-biz-finder",
+        "suite": "txbizfinder-intelligence",
+        "apiVersion": "1.0.1",
+        "env": settings.app_env,
+        "dataBackend": settings.data_backend,
+        "dataReady": ready,
+        "websiteResearchEnabled": settings.enable_website_research,
+        "duckdb": {
+            "path": str(duckdb_path),
+            "exists": duckdb_path.exists(),
+            "threads": settings.duckdb_threads,
+            "memoryLimit": settings.duckdb_memory_limit,
+        },
+    }
 
 
 @app.get("/api/legal")
@@ -72,7 +115,7 @@ def legal_notices() -> dict:
     """Machine-readable legal notices for UI footers and API clients (not legal advice)."""
     return {
         "product": "texas-biz-finder",
-        "asOf": "2026-07-24",
+        "asOf": "2026-07-27",
         "jurisdiction": "Texas, United States",
         "notLegalAdvice": True,
         "disclaimers": {
@@ -101,20 +144,35 @@ def legal_notices() -> dict:
 
 @app.get("/api/suite/meta")
 def suite_meta() -> dict:
-    """Suite metadata + data catalog (roadmap §3.3 / §6)."""
+    """Suite metadata + data catalog (TxBizFinder Intelligence)."""
     return {
         "suite": "txbizfinder-intelligence",
         "product": "texas-biz-finder",
         "productName": "TxBizFinder",
-        "domain": "finder.txbizfinder.com",
+        "domain": "www.txbizfinder.com",
+        "paths": {
+            "home": "/",
+            "app": "/app",
+            "api": "/api",
+            "radar": "/radar",
+            "channel": "/channel",
+            "sentinel": "/sentinel",
+            "flood": "/flood",
+            "power": "/power",
+            "map": "/map",
+        },
+        "apiBasePath": "/api",
         "apiVersion": "1.0.1",
         "mapHubLayer": "finder",
         "defaultPort": 8000,
         "legal": "/api/legal",
+        "health": "/health",
         "disclaimer": (
             "Leads from public filings + best-effort web research. Not a credit check. "
             "Comply with TCPA/CAN-SPAM when contacting."
         ),
+        "dataBackend": settings.data_backend,
+        "dataReady": data_backend.data_ready(),
         "dataPath": {
             "now": [
                 "data.texas.gov franchise tax bulk",
@@ -154,7 +212,7 @@ def suite_meta() -> dict:
                 "url": None,
                 "auth": "public_html",
                 "use": "Lead website discovery / deep analysis",
-                "status": "live",
+                "status": "live" if settings.enable_website_research else "disabled",
                 "validation": "medium",
                 "confidence": "best_effort_scrape",
                 "cadence": "on_demand",
@@ -191,8 +249,7 @@ def suite_meta() -> dict:
 
 
 def _mount_frontend(dist: Path) -> None:
-    """Sirve el build de Vite desde el mismo proceso (modo prod de un puerto)."""
-    # Los assets con hash (JS/CSS) se sirven como estáticos normales
+    """Legacy single-port mode (optional). Prefer Nuxt on Vercel."""
     assets_dir = dist / "assets"
     if assets_dir.is_dir():
         app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend-assets")
@@ -201,27 +258,22 @@ def _mount_frontend(dist: Path) -> None:
 
     @app.get("/", include_in_schema=False)
     async def frontend_root() -> FileResponse:
-        # La raíz siempre devuelve el index.html de la SPA
         if not index_html.is_file():
             raise HTTPException(status_code=404, detail="frontend dist missing index.html")
         return FileResponse(index_html)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def frontend_spa(full_path: str) -> FileResponse:
-        # Catch-all de la SPA: nunca interceptar la API ni /health
-        if full_path.startswith("api") or full_path in ("health",):
+        if full_path.startswith("api") or full_path in ("health", "docs", "redoc", "openapi.json"):
             raise HTTPException(status_code=404)
-        # Archivo real (favicon, manifest…) → servirlo tal cual
         candidate = dist / full_path
         if full_path and candidate.is_file():
             return FileResponse(candidate)
-        # Cualquier otra ruta → index.html (el router del frontend resuelve)
         if index_html.is_file():
             return FileResponse(index_html)
         raise HTTPException(status_code=404, detail="frontend dist not found")
 
 
-# Solo se monta si SERVE_FRONTEND=true y el build existe
 if settings.serve_frontend:
     dist_path = settings.frontend_dist_path.resolve()
     if dist_path.is_dir():

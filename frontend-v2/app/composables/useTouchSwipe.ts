@@ -31,17 +31,21 @@ export function useTouchSwipe(
       tracking = false
       return
     }
+    const touch = event.touches[0]
+    if (!touch) return
     tracking = true
-    startX = event.touches[0].clientX
-    startY = event.touches[0].clientY
+    startX = touch.clientX
+    startY = touch.clientY
   }
 
   function onTouchEnd(event: TouchEvent) {
     if (!enabled.value || !tracking || event.changedTouches.length !== 1) return
     tracking = false
+    const touch = event.changedTouches[0]
+    if (!touch) return
     // Desplazamiento total del dedo en X e Y
-    const dx = event.changedTouches[0].clientX - startX
-    const dy = event.changedTouches[0].clientY - startY
+    const dx = touch.clientX - startX
+    const dy = touch.clientY - startY
     // Debe ser suficientemente largo Y claramente horizontal (no un scroll)
     if (Math.abs(dx) < minDistance || Math.abs(dx) < Math.abs(dy) * 1.2) return
     if (dx < 0) onSwipeLeft()

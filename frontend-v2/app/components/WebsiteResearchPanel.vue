@@ -11,9 +11,12 @@ import type {
 } from '~/types/website-analysis'
 
 const props = defineProps<{
-  lead: Lead       // el negocio a investigar
-  apiKey: string   // API key para el backend (header X-API-Key)
+  lead: Lead   // el negocio a investigar
 }>()
+
+// Todas las llamadas pasan por aquí: resuelve base URL, X-API-Key y el
+// formato de error de FastAPI. Antes cada fetch armaba sus headers a mano.
+const leadsApi = useLeadsApi()
 
 const emit = defineEmits<{
   saved: []   // se guardó URL/análisis → el padre refresca la lista
@@ -44,9 +47,6 @@ let waybackTimer: ReturnType<typeof setTimeout> | null = null   // debounce de w
 // URL efectiva (sin espacios) — habilita/deshabilita los botones
 const activeUrl = computed(() => urlDraft.value.trim())
 
-// Headers comunes de todas las llamadas al backend
-const headers = computed(() => ({ 'X-API-Key': props.apiKey, 'Content-Type': 'application/json' }))
-
 // Normaliza para comparar URLs (sin barra final, en minúsculas)
 function normalizeUrl(url: string): string {
   return url.trim().replace(/\/$/, '').toLowerCase()
@@ -66,19 +66,12 @@ function isSelectedResult(result: WebsiteSearchResult): boolean {
   return normalizeUrl(result.url) === normalizeUrl(urlDraft.value)
 }
 
-// Extrae un mensaje legible del error de FastAPI (campo detail)
-async function parseError(response: Response): Promise<string> {
-  const body = await response.json().catch(() => null)
-  if (typeof body?.detail === 'string') return body.detail
-  if (body?.detail?.message) return String(body.detail.message)
-  return `API error ${response.status}`
-}
-
 // ¿Hay un Playwright corriendo? (el backend solo permite uno global)
 async function refreshStatus(): Promise<void> {
-  const response = await fetch('/api/leads/website-research/status', { headers: headers.value })
-  if (response.ok) {
-    analysisStatus.value = (await response.json()) as AnalysisStatus
+  try {
+    analysisStatus.value = await leadsApi.fetchResearchStatus()
+  } catch {
+    // sin ruido: se conserva el último estado conocido del lock
   }
 }
 
@@ -86,11 +79,7 @@ async function refreshStatus(): Promise<void> {
 async function loadHistory(): Promise<void> {
   loadingHistory.value = true
   try {
-    const response = await fetch(`/api/leads/${props.lead.id}/website-analyses`, {
-      headers: headers.value,
-    })
-    if (!response.ok) throw new Error(await parseError(response))
-    analyses.value = (await response.json()) as WebsiteAnalysis[]
+    analyses.value = await leadsApi.fetchWebsiteAnalyses(props.lead.id)
     latestAnalysis.value = analyses.value[0] ?? null   // el primero es el más nuevo
   } catch (err) {
     panelError.value = err instanceof Error ? err.message : t('loadingHistory')
@@ -105,13 +94,7 @@ async function searchWebsite(): Promise<void> {
   panelError.value = null
   searchResults.value = []
   try {
-    const response = await fetch(`/api/leads/${props.lead.id}/website-search`, {
-      method: 'POST',
-      headers: headers.value,
-      body: JSON.stringify({ max_results: 8 }),
-    })
-    if (!response.ok) throw new Error(await parseError(response))
-    const payload = (await response.json()) as { query: string; results: WebsiteSearchResult[] }
+    const payload = await leadsApi.searchLeadWebsite(props.lead.id, { max_results: 8 })
     searchQuery.value = payload.query       // se muestra qué query se usó
     searchResults.value = payload.results
     // Si el lead ya tenía URL guardada, precargarla en el input
@@ -140,15 +123,7 @@ async function fetchWaybackForUrl(url: string): Promise<void> {
   }
   loadingWayback.value = true
   try {
-    const response = await fetch(
-      `/api/leads/website-wayback?url=${encodeURIComponent(target)}`,
-      { headers: headers.value },
-    )
-    if (response.ok) {
-      waybackDraft.value = (await response.json()) as WaybackInfo
-    } else {
-      waybackDraft.value = null
-    }
+    waybackDraft.value = await leadsApi.fetchWayback(target)
   } catch {
     waybackDraft.value = null   // fallo silencioso: Wayback es informativo
   } finally {
@@ -169,12 +144,7 @@ async function saveUrlOnly(): Promise<void> {
   savingUrl.value = true
   panelError.value = null
   try {
-    const response = await fetch(`/api/leads/${props.lead.id}/website-url`, {
-      method: 'PATCH',
-      headers: headers.value,
-      body: JSON.stringify({ url }),
-    })
-    if (!response.ok) throw new Error(await parseError(response))
+    await leadsApi.saveLeadWebsiteUrl(props.lead.id, { url })
     emit('saved')   // el padre refresca la lista con la URL nueva
   } catch (err) {
     panelError.value = err instanceof Error ? err.message : t('savingUrl')
@@ -201,21 +171,19 @@ async function analyzeWebsite(): Promise<void> {
   analyzing.value = true
   panelError.value = null
   try {
-    const response = await fetch(`/api/leads/${props.lead.id}/website-analyze`, {
-      method: 'POST',
-      headers: headers.value,
-      body: JSON.stringify({ url, save_to_lead: true }),
+    latestAnalysis.value = await leadsApi.analyzeLeadWebsite(props.lead.id, {
+      url,
+      save_to_lead: true,
     })
-    // 409 = otro análisis ganó la carrera por el lock
-    if (response.status === 409) {
-      throw new Error(t('playwrightConflict'))
-    }
-    if (!response.ok) throw new Error(await parseError(response))
-    latestAnalysis.value = (await response.json()) as WebsiteAnalysis
     await loadHistory()   // refresca el historial con el nuevo análisis
     emit('saved')
   } catch (err) {
-    panelError.value = err instanceof Error ? err.message : t('analyzing')
+    // CONFLICT_BUSY = otro análisis ganó la carrera por el lock (HTTP 409)
+    if (err instanceof Error && err.message === 'CONFLICT_BUSY') {
+      panelError.value = t('playwrightConflict')
+    } else {
+      panelError.value = err instanceof Error ? err.message : t('analyzing')
+    }
   } finally {
     analyzing.value = false
     await refreshStatus()   // re-sincroniza el estado del lock
@@ -225,12 +193,7 @@ async function analyzeWebsite(): Promise<void> {
 // Abre el reporte HTML de un análisis en una pestaña nueva (vía blob temporal)
 async function openReport(analysisId: number): Promise<void> {
   try {
-    const response = await fetch(
-      `/api/leads/${props.lead.id}/website-analyses/${analysisId}/report`,
-      { headers: headers.value },
-    )
-    if (!response.ok) throw new Error(await parseError(response))
-    const html = await response.text()
+    const html = await leadsApi.fetchAnalysisReportHtml(props.lead.id, analysisId)
     const blob = new Blob([html], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     window.open(url, '_blank')

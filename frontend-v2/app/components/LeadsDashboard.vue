@@ -1,13 +1,11 @@
 <script setup lang="ts">
 // Dashboard principal: búsqueda + filtros + tarjetas de leads + paginación.
-// Port 1:1 de la v1 a Nuxt: componentes y composables se auto-importan,
-// la API key ahora viene de runtimeConfig (antes VITE_ADMIN_API_KEY).
-import type { LeadSearchPage } from '~/types/lead-search'
+// Port 1:1 de la v1 a Nuxt: componentes y composables se auto-importan, y las
+// llamadas HTTP van por useLeadsApi (que resuelve base URL y X-API-Key desde
+// runtimeConfig, donde antes se leía VITE_ADMIN_API_KEY).
 import type { Lead } from '~/types/lead'
 
 const { t } = useI18n()
-// API key pública para el header X-API-Key del backend FastAPI
-const API_KEY = useRuntimeConfig().public.adminApiKey
 const PAGE_SIZE = 50   // leads por página (igual que la API)
 
 // ── Estado principal ─────────────────────────────────────────────────────
@@ -120,13 +118,16 @@ function buildSearchParams(forExport = false): URLSearchParams {
 }
 
 // ── Llamadas a la API ────────────────────────────────────────────────────
+// Todas pasan por useLeadsApi, que centraliza base URL, X-API-Key y el
+// formato de error de FastAPI (equivale a lib/leadsApi.ts de la v1).
+const leadsApi = useLeadsApi()
+
 // Totales globales del header (silencioso: si falla, se quedan los anteriores)
 async function fetchStats(): Promise<void> {
-  const response = await fetch('/api/leads/stats', {
-    headers: { 'X-API-Key': API_KEY },
-  })
-  if (response.ok) {
-    dbStats.value = (await response.json()) as typeof dbStats.value
+  try {
+    dbStats.value = await leadsApi.fetchLeadStats()
+  } catch {
+    // sin ruido: los totales previos siguen siendo válidos
   }
 }
 
@@ -136,19 +137,7 @@ async function fetchLeads(): Promise<void> {
   error.value = null
 
   try {
-    const response = await fetch(`/api/leads?${buildSearchParams().toString()}`, {
-      headers: { 'X-API-Key': API_KEY },
-    })
-    if (!response.ok) {
-      // Intenta extraer el detail de FastAPI; si no, un mensaje genérico
-      const detail = await response.json().catch(() => null)
-      const message =
-        typeof detail?.detail === 'string'
-          ? detail.detail
-          : `API error: ${response.status}`
-      throw new Error(message)
-    }
-    const page = (await response.json()) as LeadSearchPage
+    const page = await leadsApi.searchLeads(buildSearchParams())
     leads.value = page.items
     filteredTotal.value = page.total
     totalPages.value = page.pages
@@ -197,13 +186,14 @@ async function onResearchSaved(): Promise<void> {
 
 // Exporta la búsqueda actual (hasta 5000 filas) como CSV descargable
 async function exportCsv(): Promise<void> {
-  const response = await fetch(`/api/leads/export/csv?${buildSearchParams(true).toString()}`, {
-    headers: { 'X-API-Key': API_KEY },
-  })
-  if (!response.ok) return
+  let blob: Blob
+  try {
+    blob = await leadsApi.exportLeadsCsv(buildSearchParams(true))
+  } catch {
+    return
+  }
 
   // Descarga vía blob + <a download> temporal
-  const blob = await response.blob()
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
@@ -612,7 +602,6 @@ onUnmounted(() => {
               <WebsiteResearchPanel
                 :key="lead.id"
                 :lead="lead"
-                :api-key="API_KEY"
                 @saved="onResearchSaved"
                 @close="researchLeadId = null"
               />
@@ -724,7 +713,6 @@ onUnmounted(() => {
         <WebsiteResearchPanel
           v-if="activeResearchLead"
           :lead="activeResearchLead"
-          :api-key="API_KEY"
           @saved="onResearchSaved"
           @close="researchLeadId = null"
         />

@@ -1,0 +1,25 @@
+[Unit]
+Description=TX BizFinder FastAPI (Oracle Free Tier)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/texas-biz-finder
+EnvironmentFile=/home/ubuntu/texas-biz-finder/.env
+Environment=APP_ENV=production
+Environment=PATH=/home/ubuntu/texas-biz-finder/.venv/bin:/usr/bin
+ExecStart=/home/ubuntu/texas-biz-finder/.venv/bin/python -m uvicorn backend.app.main:app \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --workers 1 \
+  --proxy-headers \
+  --forwarded-allow-ips=*
+Restart=on-failure
+RestartSec=5
+# Soft limits for Always Free
+MemoryMax=1400M
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

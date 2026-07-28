@@ -17,10 +17,13 @@ def ingest_texas_data(
     output_path: Path,
     *,
     download_limit: int = 50,
-    include_demo_seed: bool = True,
+    include_demo_seed: bool = False,
     keyword: str | None = None,
 ) -> dict[str, int | str]:
-    """Download Texas open data, merge demo seeds, and write staging JSON."""
+    """Download Texas open data and write staging JSON.
+
+    Demo seed is opt-in (tests/dev only). Production uses bulk_pipeline.
+    """
     downloaded = download_texas_public_records(limit=download_limit, keyword=keyword)
     records = merge_records(downloaded, include_demo_seed=include_demo_seed)
 
@@ -72,9 +75,14 @@ def main() -> None:
         help="Number of records to download from data.texas.gov",
     )
     parser.add_argument(
+        "--with-demo-seed",
+        action="store_true",
+        help="Merge curated demo fixtures (tests/dev only — not for production)",
+    )
+    parser.add_argument(
         "--no-demo-seed",
         action="store_true",
-        help="Skip merging curated demo seed records",
+        help=argparse.SUPPRESS,  # legacy: demo is off by default now
     )
     parser.add_argument(
         "--keyword",
@@ -83,14 +91,15 @@ def main() -> None:
         help="Filter business names containing keyword (e.g. AUTO, REPAIR)",
     )
     args = parser.parse_args()
+    include_demo = bool(args.with_demo_seed) and not args.no_demo_seed
     stats = ingest_texas_data(
         args.output,
         download_limit=args.limit,
-        include_demo_seed=not args.no_demo_seed,
+        include_demo_seed=include_demo,
         keyword=args.keyword,
     )
     print(
-        "Ingested {total} records ({downloaded} downloaded + demo seed) -> {output}".format(
+        "Ingested {total} records ({downloaded} from open data) -> {output}".format(
             **stats
         )
     )

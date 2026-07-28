@@ -1,0 +1,31 @@
+# Cloudflare Worker — path router for www.txbizfinder.com / txbizfinder.com
+# Deploy from this directory:
+#   npx wrangler deploy
+#
+# Then in Cloudflare Dashboard → Workers → this worker → Triggers →
+#   Custom domains: www.txbizfinder.com, txbizfinder.com
+# (or Routes: txbizfinder.com/* and www.txbizfinder.com/*)
+
+name = "txbizfinder-path-router"
+main = "path-router.worker.js"
+compatibility_date = "2026-04-01"
+account_id = "fc48354a4164b23371b8dcd051cf86d9"
+workers_dev = true
+
+# Custom domains (www + apex) are attached via Workers Domains API —
+# see deploy notes. Do not use zone "routes" here: this API token
+# can edit workers but zone workers/routes returned 403.
+
+# Public vars (non-secret). Override API_ORIGIN after Oracle is up:
+#   npx wrangler secret put API_ORIGIN
+
+[vars]
+FINDER_ORIGIN = "https://txbizfinder-web.vercel.app"
+RADAR_ORIGIN = "https://permitradar-houston.vercel.app"
+CHANNEL_ORIGIN = "https://channelwatch-laporte.vercel.app"
+SENTINEL_ORIGIN = "https://emissions-sentinel-web.vercel.app"
+FLOOD_ORIGIN = "https://floodguard-texas.vercel.app"
+POWER_ORIGIN = "https://powerpulse-texas.vercel.app"
+MAP_ORIGIN = "https://maphub-texas.vercel.app"
+# Leave empty until Oracle API has a public HTTPS URL; Worker returns 503 for /api
+API_ORIGIN = ""

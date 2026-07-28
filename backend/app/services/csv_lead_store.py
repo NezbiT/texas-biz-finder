@@ -102,6 +102,14 @@ def _connection() -> duckdb.DuckDBPyConnection:
         _duckdb_conn = duckdb.connect(str(settings.processed_duckdb_path.resolve()), read_only=True)
     else:
         _duckdb_conn = duckdb.connect()   # en memoria (fallback para leer CSV)
+    # Oracle Free Tier / low-RAM hosts: cap threads + memory before heavy queries
+    try:
+        threads = max(1, int(settings.duckdb_threads))
+        mem = (settings.duckdb_memory_limit or "1GB").strip()
+        _duckdb_conn.execute(f"SET threads TO {threads}")
+        _duckdb_conn.execute(f"SET memory_limit = '{mem}'")
+    except Exception:  # noqa: BLE001 — settings may be missing in old reloads
+        pass
     return _duckdb_conn
 
 
@@ -298,6 +306,7 @@ def _row_to_lead(row: tuple, columns: list[str]) -> LeadRead:
         qualification_notes=str(data["qualification_notes"])
         if data.get("qualification_notes") not in (None, "")
         else None,
+        sells_alcohol=_as_bool(data.get("sells_alcohol")),
         source=str(data.get("source") or "texas_bulk_csv"),
         created_at=now,   # el bulk no guarda timestamps por fila
         updated_at=now,

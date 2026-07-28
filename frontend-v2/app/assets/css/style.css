@@ -1,11 +1,158 @@
-/* Hoja de estilos de TX BizFinder (copiada tal cual de la v1):
-   directivas de Tailwind + clases de componente de la marca
-   (surface-card, btn-primary, input-field, badges, dock móvil,
-   partículas de fondo, transiciones). El tema de colores vive en
-   tailwind.config.js. */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Hoja de estilos de TX BizFinder (Tailwind v4):
+   tema de marca + clases de componente (surface-card, btn-primary,
+   input-field, badges, dock móvil, partículas de fondo, transiciones).
+   El tema ya NO vive en tailwind.config.js: está en el @theme de abajo,
+   que es lo que permite compartirlo desde un Nuxt Layer (Fase 5). */
+@import "tailwindcss";
+
+/* v4 detecta las fuentes solo, pero lo fijamos explícito: el CSS vive en
+   app/assets/css/ y las plantillas en app/ (components, pages, app.vue). */
+@source "../../";
+
+/* La v3 usaba darkMode: "class". En v4 eso es un variant declarado a mano.
+   :where() mantiene la especificidad en 0 igual que hacía la v3. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ── Paleta de marca (era theme.extend.colors.brand) ── */
+  --color-brand-navy: #0c1222;
+  --color-brand-navy-mid: #1a2744;
+  --color-brand-navy-soft: #243352;
+  --color-brand-copper: #c87941;
+  --color-brand-copper-light: #e8a55c;
+  --color-brand-copper-dark: #a8612f;
+  --color-brand-teal: #2a9d8f;
+  --color-brand-teal-light: #3db8a9;
+  --color-brand-sage: #5a7d6a;
+  --color-brand-sand: #f8f6f2;
+  --color-brand-cream: #fdf9f3;
+
+  /* ── Tipografía ── */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+
+  /* ── Sombras ── */
+  --shadow-card: 0 4px 24px -4px rgba(12, 18, 34, 0.12);
+  --shadow-card-dark: 0 8px 32px -8px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 24px -4px rgba(200, 121, 65, 0.35);
+
+  /* ── Animaciones (utilities animate-*) ──
+     Nota: en la v1 los keyframes del config se emitían en camelCase
+     (blobDrift, gradientShift) pero el CSS los invocaba en kebab
+     (animation: blob-drift / gradient-shift), así que esas dos nunca
+     llegaron a correr. Aquí se nombran en kebab y quedan arregladas. */
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 0.4s ease-out both;
+  --animate-slide-up: slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-stat-pop: stat-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-gradient-shift: gradient-shift 14s ease-in-out infinite;
+  --animate-blob-drift: blob-drift 18s ease-in-out infinite;
+  --animate-bounce-in: bounce-in 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  --animate-shake: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --animate-glow-pulse: glow-pulse 2.5s ease-in-out infinite;
+  --animate-badge-pop: badge-pop 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  --animate-expand-in: expand-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-number-pop: number-pop 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  --animate-spin-slow: spin-slow 8s linear infinite;
+
+  @keyframes fade-up {
+    0% { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  @keyframes slide-up {
+    0% { opacity: 0; transform: translateY(20px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes stat-pop {
+    0% { opacity: 0; transform: scale(0.88); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.65; }
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  @keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  @keyframes blob-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(20px, 14px) scale(1.06); }
+  }
+  @keyframes bounce-in {
+    0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(42, 157, 143, 0); }
+    50% { box-shadow: 0 0 20px 2px rgba(42, 157, 143, 0.25); }
+  }
+  @keyframes badge-pop {
+    0% { opacity: 0; transform: scale(0.7); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes expand-in {
+    0% { opacity: 0; max-height: 0; transform: scaleY(0.95); }
+    100% { opacity: 1; max-height: 500px; transform: scaleY(1); }
+  }
+  @keyframes number-pop {
+    0% { opacity: 0.4; transform: scale(0.85) translateY(4px); }
+    60% { transform: scale(1.08) translateY(-2px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+}
+
+/* Clases de marca que otras reglas consumen vía @apply (incluso con
+   variantes como dark:). En v4 eso obliga a declararlas como @utility:
+   una clase suelta en @layer components no es "apply-able". */
+@utility bg-hero-light {
+  background: linear-gradient(135deg, #f8f6f2 0%, #eef4f3 38%, #fde8d4 72%, #f8f6f2 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 14s ease-in-out infinite;
+}
+
+@utility bg-hero-dark {
+  background: linear-gradient(135deg, #0c1222 0%, #1a2744 40%, #1e3d3a 72%, #0c1222 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 14s ease-in-out infinite;
+}
+
+@utility surface-card {
+  @apply rounded-2xl border shadow-card;
+  @apply border-brand-navy/10 bg-white/90 dark:border-white/10 dark:bg-brand-navy-mid/60 dark:shadow-card-dark;
+  transition: box-shadow 0.25s ease-out, border-color 0.25s ease-out, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: card-glow 6s ease-in-out infinite;
+
+  &:hover {
+    @apply shadow-lg dark:shadow-card-dark;
+    transform: translateY(-2px);
+  }
+}
+
+@utility badge {
+  @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium;
+}
 
 @layer base {
   html {
@@ -86,35 +233,11 @@
     height: 4px;
   }
 
-  .bg-hero-light {
-    background: linear-gradient(135deg, #f8f6f2 0%, #eef4f3 38%, #fde8d4 72%, #f8f6f2 100%);
-    background-size: 200% 200%;
-    animation: gradient-shift 14s ease-in-out infinite;
-  }
-
-  .bg-hero-dark {
-    background: linear-gradient(135deg, #0c1222 0%, #1a2744 40%, #1e3d3a 72%, #0c1222 100%);
-    background-size: 200% 200%;
-    animation: gradient-shift 14s ease-in-out infinite;
-  }
-
   .app-header {
     @apply sticky top-0 z-40 border-b backdrop-blur-md;
     @apply border-brand-navy/10 bg-white/75 dark:border-white/10 dark:bg-brand-navy/80;
     transition: background-color 0.15s ease-out, border-color 0.15s ease-out;
     animation: slideDown 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .surface-card {
-    @apply rounded-2xl border shadow-card;
-    @apply border-brand-navy/10 bg-white/90 dark:border-white/10 dark:bg-brand-navy-mid/60 dark:shadow-card-dark;
-    transition: box-shadow 0.25s ease-out, border-color 0.25s ease-out, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-    animation: card-glow 6s ease-in-out infinite;
-  }
-
-  .surface-card:hover {
-    @apply shadow-lg dark:shadow-card-dark;
-    transform: translateY(-2px);
   }
 
   .search-card-loading {
@@ -138,20 +261,20 @@
   }
 
   .lead-card {
-    @apply surface-card p-5 backdrop-blur-sm;
+    @apply surface-card p-5 backdrop-blur-xs;
     @apply hover:-translate-y-1 hover:border-brand-copper/30 dark:hover:border-brand-teal/40;
     transition: box-shadow 0.2s ease-out, border-color 0.2s ease-out,
       transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .lead-card-stagger {
-    animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .input-field {
     @apply w-full rounded-xl border px-4 py-3 text-sm;
     @apply border-brand-navy/15 bg-white text-brand-navy placeholder:text-brand-navy/40;
-    @apply focus:border-brand-teal focus:outline-none focus:ring-2 focus:ring-brand-teal/20;
+    @apply focus:border-brand-teal focus:outline-hidden focus:ring-2 focus:ring-brand-teal/20;
     @apply dark:border-white/10 dark:bg-brand-navy/50 dark:text-slate-100 dark:placeholder:text-slate-500;
     @apply dark:focus:border-brand-copper-light dark:focus:ring-brand-copper/20;
     transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.15s ease-out,
@@ -168,7 +291,7 @@
 
   .btn-primary {
     @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl px-5 py-2.5 text-sm font-semibold text-white;
-    @apply bg-brand-copper shadow-sm hover:bg-brand-copper-dark hover:shadow-glow active:scale-[0.96];
+    @apply bg-brand-copper shadow-xs hover:bg-brand-copper-dark hover:shadow-glow active:scale-[0.96];
     @apply disabled:pointer-events-none disabled:opacity-50;
     transition: background-color 0.2s ease-out, transform 0.15s cubic-bezier(0.22, 1, 0.36, 1),
       box-shadow 0.2s ease-out;
@@ -214,22 +337,18 @@
       transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .badge {
-    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium;
-  }
-
   .badge-qualified {
     @apply badge bg-emerald-500/15 text-emerald-700 dark:text-emerald-300;
-    animation: badgePop 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+    animation: badge-pop 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) both;
   }
 
   .badge-animate {
-    animation: badgePop 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+    animation: badge-pop 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) both;
   }
 
   .stat-number {
     display: inline-block;
-    animation: numberPop 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+    animation: number-pop 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
   }
 
   .badge-neutral {
@@ -263,7 +382,7 @@
   }
 
   .locale-pill {
-    @apply absolute top-0.5 bottom-0.5 rounded-lg bg-brand-copper shadow-sm;
+    @apply absolute top-0.5 bottom-0.5 rounded-lg bg-brand-copper shadow-xs;
     transition: left 0.28s cubic-bezier(0.34, 1.2, 0.64, 1), width 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
   }
 
@@ -313,12 +432,12 @@
   .research-result-btn:hover,
   .research-result-card:hover {
     transform: translateX(4px);
-    @apply border-brand-teal/40 shadow-sm;
+    @apply border-brand-teal/40 shadow-xs;
   }
 
   .research-result-btn.selected,
   .research-result-card.selected {
-    @apply border-brand-copper bg-brand-copper/10 shadow-sm dark:border-brand-copper-light;
+    @apply border-brand-copper bg-brand-copper/10 shadow-xs dark:border-brand-copper-light;
     animation: glow-pulse-soft 2s ease-in-out infinite;
   }
 
@@ -359,7 +478,7 @@
   }
 
   .pagination-nav {
-    animation: bounceIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+    animation: bounce-in 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) both;
   }
 
   .error-shake {
@@ -380,17 +499,6 @@
   0% {
     opacity: 0;
     transform: translateY(-10px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeUp {
-  0% {
-    opacity: 0;
-    transform: translateY(12px);
   }
   100% {
     opacity: 1;
@@ -446,31 +554,6 @@
   }
 }
 
-@keyframes badgePop {
-  0% {
-    opacity: 0;
-    transform: scale(0.7);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes numberPop {
-  0% {
-    opacity: 0.4;
-    transform: scale(0.85) translateY(4px);
-  }
-  60% {
-    transform: scale(1.08) translateY(-2px);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
 @keyframes btn-pulse {
   0%,
   100% {
@@ -508,36 +591,6 @@
   }
   50% {
     transform: translateY(-6px);
-  }
-}
-
-@keyframes bounceIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.92) translateY(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-6px);
-  }
-  40% {
-    transform: translateX(6px);
-  }
-  60% {
-    transform: translateX(-4px);
-  }
-  80% {
-    transform: translateX(4px);
   }
 }
 
@@ -715,7 +768,7 @@ body.sheet-open {
 }
 
 .swipe-hint {
-  animation: fadeUp 0.5s var(--spring-soft) both;
+  animation: fade-up 0.5s var(--spring-soft) both;
 }
 
 .swipe-chevron {

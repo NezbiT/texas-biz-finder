@@ -1,0 +1,45 @@
+# TX BizFinder API — local / Oracle Free Tier
+# Usage:
+#   1. Put processed DuckDB at data/processed/texas_leads.duckdb
+#   2. Copy .env.example → .env and set ADMIN_API_KEY + APP_ENV=production
+#   3. docker compose up -d --build
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # true only if you need Playwright website research (needs ~1GB+ free RAM)
+        INSTALL_PLAYWRIGHT: ${INSTALL_PLAYWRIGHT:-false}
+    image: txbizfinder-api:latest
+    container_name: txbizfinder-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATA_BACKEND: ${DATA_BACKEND:-csv}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/texasbizfinder.db}
+      PROCESSED_DUCKDB_PATH: ${PROCESSED_DUCKDB_PATH:-data/processed/texas_leads.duckdb}
+      PROCESSED_CSV_PATH: ${PROCESSED_CSV_PATH:-data/processed/texas_leads_processed.csv}
+      ENABLE_WEBSITE_RESEARCH: ${ENABLE_WEBSITE_RESEARCH:-false}
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
+      DUCKDB_THREADS: ${DUCKDB_THREADS:-2}
+      DUCKDB_MEMORY_LIMIT: ${DUCKDB_MEMORY_LIMIT:-1GB}
+      # Comma or JSON list; must include your Vercel frontend origin
+      CORS_ORIGINS: ${CORS_ORIGINS:-["https://www.txbizfinder.com","https://txbizfinder.com","https://txbizfinder-web.vercel.app"]}
+    volumes:
+      # Persist SQLite overlay (website research) + DuckDB bulk leads
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    # Free tier: avoid OOM kills
+    mem_limit: ${MEM_LIMIT:-1500m}
+    cpus: ${CPU_LIMIT:-1.0}

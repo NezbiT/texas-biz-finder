@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.2.0] — 2026-07-27
+
+### Path-based suite (no PC tunnel)
+
+- **Retired Cloudflare Tunnel** to a home PC (`start-cloudflare.ps1`, setup script).
+- **Single domain paths:** `www.txbizfinder.com/{app,radar,channel,sentinel,flood,power,map,api}`.
+- **Worker router:** `deploy/cloudflare/path-router.worker.js` + `wrangler.toml` (no prefix strip).
+- **Nuxt baseURL** on radar/channel/sentinel/flood/power/map: `/radar/` etc. in production; `/` in local dev.
+- Suite cards link to paths (same-tab); API public base is `/api` (Oracle via Worker).
+
+## [3.1.0] — 2026-07-27
+
+### Production / TxBizFinder Intelligence
+
+- **No demo on boot:** `python run.py` no longer seeds fixture businesses. Demo is opt-in (`--seed --with-demo-seed` or tests via `process_leads()` stub).
+- **Unified data backend:** search, export JSON, export CSV and stats share `data_backend.py` (csv/DuckDB | supabase | sqlite). Export JSON no longer silently used SQLite while search used DuckDB.
+- **Strict bulk mode:** `DATA_BACKEND=csv` without DuckDB returns **503** with a clear message (no silent empty/demo fallback).
+- **Oracle Free Tier:** `Dockerfile`, `docker-compose.yml`, `deploy/oracle/` (systemd + runbook). DuckDB `threads` + `memory_limit` tunable via env. Playwright optional (`ENABLE_WEBSITE_RESEARCH`).
+- **Vercel frontend:** `frontend-v2/vercel.json`; Nitro proxy normalizes trailing slash on `NUXT_API_PROXY_URL`.
+- **CORS / health:** Nuxt `:3000` + production domains; `/health` reports `dataReady`, backend, suite id.
+- **API:** `sells_alcohol` on `LeadRead`; production refuses default `ADMIN_API_KEY` at startup.
+
 ## [2.0.0] — 2026-06-28
 
 ### Breaking changes

@@ -1,5 +1,14 @@
 // TX BizFinder v2 — Nuxt 4. Misma UI que la SPA v1 pero con SSR (SEO real),
 // i18n de Nuxt y PWA vía módulo oficial. El backend FastAPI no cambia.
+import tailwindcss from '@tailwindcss/vite'
+
+// Ruta del dashboard de leads. Se lee aquí (y no solo en runtimeConfig) porque
+// routeRules y pages:extend se resuelven en build, antes de que exista runtime.
+const BIZ_APP_PATH = (() => {
+  const p = process.env.NUXT_PUBLIC_SUITE_BIZ_APP_PATH || '/app'
+  return p.startsWith('/') ? p : `/${p}`
+})()
+
 export default defineNuxtConfig({
   // Fija el comportamiento del framework a esta fecha (sin sorpresas al actualizar)
   compatibilityDate: '2025-07-15',
@@ -10,16 +19,15 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',  // PWA instalable (reemplaza vite-plugin-pwa de la v1)
   ],
 
-  // Hoja global: la MISMA style.css de la v1 (Tailwind v3 + clases de marca)
+  // Hoja global: Tailwind v4 + clases de marca. El tema ya no vive en
+  // tailwind.config.js sino en el bloque @theme de este mismo archivo.
   css: ['~/assets/css/style.css'],
 
-  // Tailwind v3 clásico vía PostCSS (la v1 usaba el mismo stack; el tema vive
-  // en tailwind.config.js). Autoprefixer añade prefijos de navegador.
-  postcss: {
-    plugins: {
-      tailwindcss: {},
-      autoprefixer: {},
-    },
+  // Tailwind v4 vía su plugin de Vite (sin PostCSS ni autoprefixer: Lightning
+  // CSS se encarga del prefijado). Es el modo que requiere Fase 5, porque un
+  // Nuxt Layer solo puede compartir tema si éste es CSS-first (@theme).
+  vite: {
+    plugins: [tailwindcss()],
   },
 
   // Auto-import de componentes sin prefijo de carpeta (<LeadsDashboard> directo)
@@ -28,7 +36,6 @@ export default defineNuxtConfig({
   i18n: {
     defaultLocale: 'en',       // inglés por defecto (igual que la v1)
     strategy: 'no_prefix',     // una sola URL por página, sin /es
-    lazy: false,
     locales: [
       { code: 'en', name: 'English', file: 'en.json' },
       { code: 'es', name: 'Español', file: 'es.json' },
@@ -81,7 +88,7 @@ export default defineNuxtConfig({
       ],
     },
     // Revisa actualizaciones del SW cada hora (sustituye el setInterval de main.ts v1)
-    periodicSyncForUpdates: 3600,
+    client: { periodicSyncForUpdates: 3600 },
     devOptions: { enabled: false },   // en dev no hace falta SW (evita cachés raras)
   },
 
@@ -114,21 +121,65 @@ export default defineNuxtConfig({
   nitro: {
     // Dev: reenvía /api al FastAPI local (mismo proxy que tenía Vite en :5173)
     devProxy: {
-      '/api': { target: 'http://127.0.0.1:8000/api', changeOrigin: true },
+      '/api': {
+        target: process.env.NUXT_DEV_API_URL || 'http://127.0.0.1:8000/api',
+        changeOrigin: true,
+      },
     },
   },
 
-  // Producción: si NUXT_API_PROXY_URL está definido (p. ej. la URL de Render),
-  // Nitro reenvía /api/** a ese backend — el navegador siempre habla con el
-  // mismo origen y no hay problemas de CORS.
-  routeRules: process.env.NUXT_API_PROXY_URL
-    ? { '/api/**': { proxy: `${process.env.NUXT_API_PROXY_URL}/api/**` } }
-    : {},
+  // Producción (Vercel): NUXT_API_PROXY_URL = Oracle API u origen del tunnel
+  // (p. ej. https://api.txbizfinder.com). Nitro reenvía /api/** al backend —
+  // el navegador habla con el mismo origen y no hay problemas de CORS.
+  routeRules: {
+    ...(process.env.NUXT_API_PROXY_URL
+      ? {
+          '/api/**': {
+            proxy: `${String(process.env.NUXT_API_PROXY_URL).replace(/\/$/, '')}/api/**`,
+          },
+        }
+      : {}),
+    // /leads era la ruta vieja del dashboard
+    '/leads': { redirect: BIZ_APP_PATH },
+    // Si el dashboard se movió de /app, la ruta vieja redirige a la nueva
+    ...(BIZ_APP_PATH !== '/app' ? { '/app': { redirect: BIZ_APP_PATH } } : {}),
+  },
+
+  hooks: {
+    // La ruta del dashboard es configurable (era BIZ_APP_PATH en el router v1).
+    // El file-based routing da /app por el archivo pages/app.vue; si el entorno
+    // pide otra ruta, se registra aquí apuntando al MISMO componente.
+    'pages:extend'(pages) {
+      if (BIZ_APP_PATH === '/app') return
+      const appPage = pages.find((p) => p.path === '/app')
+      if (appPage) {
+        pages.push({ ...appPage, name: 'biz-app', path: BIZ_APP_PATH })
+      }
+    },
+  },
 
   runtimeConfig: {
     public: {
       // API key que la v1 leía de VITE_ADMIN_API_KEY (ahora NUXT_PUBLIC_ADMIN_API_KEY)
       adminApiKey: process.env.NUXT_PUBLIC_ADMIN_API_KEY || 'admin-dev-key-change-me',
+
+      // Origen absoluto opcional de la API (p. ej. https://api.txbizfinder.com).
+      // Vacío → mismo origen `/api/...`, que es lo normal aquí porque Nitro ya
+      // hace de proxy (devProxy en dev, routeRules en prod).
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '',
+
+      // Suite en un solo dominio (paths). Sin subdominios ni tunnel a PC.
+      // Override opcional con NUXT_PUBLIC_SUITE_* si hace falta.
+      suite: {
+        wwwUrl: process.env.NUXT_PUBLIC_SUITE_WWW_URL || 'https://www.txbizfinder.com',
+        bizAppPath: BIZ_APP_PATH,
+        radarUrl: process.env.NUXT_PUBLIC_SUITE_RADAR_URL || 'https://www.txbizfinder.com/radar',
+        channelUrl: process.env.NUXT_PUBLIC_SUITE_CHANNEL_URL || 'https://www.txbizfinder.com/channel',
+        sentinelUrl: process.env.NUXT_PUBLIC_SUITE_SENTINEL_URL || 'https://www.txbizfinder.com/sentinel',
+        floodUrl: process.env.NUXT_PUBLIC_SUITE_FLOOD_URL || 'https://www.txbizfinder.com/flood',
+        powerUrl: process.env.NUXT_PUBLIC_SUITE_POWER_URL || 'https://www.txbizfinder.com/power',
+        mapUrl: process.env.NUXT_PUBLIC_SUITE_MAP_URL || 'https://www.txbizfinder.com/map',
+      },
     },
   },
 })

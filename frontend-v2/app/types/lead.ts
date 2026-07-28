@@ -29,6 +29,7 @@ export interface Lead {
   is_qualified: boolean                   // ¿lead calificado? (score sobre umbral)
   qualification_score: number             // puntaje de calificación (0-100)
   qualification_notes: string | null      // por qué calificó / no calificó
+  sells_alcohol?: boolean                 // cruce TABC mixed beverage
   source: string                          // origen del dato (franchise, TABC…)
   created_at: string                      // timestamps ISO
   updated_at: string

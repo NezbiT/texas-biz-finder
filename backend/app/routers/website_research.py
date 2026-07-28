@@ -39,6 +39,18 @@ from backend.app.config import settings
 router = APIRouter(prefix="/api/leads", tags=["website-research"])
 
 
+def _require_website_research() -> None:
+    """Oracle free tier / low-RAM: disable Playwright + external search via env."""
+    if not settings.enable_website_research:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Website research is disabled on this host "
+                "(set ENABLE_WEBSITE_RESEARCH=true and install Playwright chromium)."
+            ),
+        )
+
+
 def _wayback_info(url: str) -> WaybackInfo | None:
     """Lookup Wayback de una URL → schema de la API (o None si no hay dominio)."""
     history = lookup_wayback(url)
@@ -66,6 +78,7 @@ def website_wayback_history(
     _: str = Depends(require_admin),
 ) -> WaybackInfo:
     """Línea de tiempo del archivo para una URL (primera captura, última, edad)."""
+    _require_website_research()
     target = url.strip()
     if not target:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL is required")
@@ -81,6 +94,8 @@ def website_wayback_history(
 @router.get("/website-research/status", response_model=AnalysisStatusResponse)
 def analysis_status(_: str = Depends(require_admin)) -> AnalysisStatusResponse:
     """¿Hay un Playwright corriendo? (la UI lo consulta antes de analizar)."""
+    if not settings.enable_website_research:
+        return AnalysisStatusResponse(busy=False, lead_id=None, url=None)
     active = analysis_lock.active
     return AnalysisStatusResponse(
         busy=analysis_lock.is_busy,
@@ -97,6 +112,7 @@ def search_lead_website(
     _: str = Depends(require_admin),
 ) -> WebsiteSearchResponse:
     """Busca el sitio del negocio en DuckDuckGo usando nombre + ciudad."""
+    _require_website_research()
     # El body puede sobreescribir nombre/ciudad; si no, se usan los del lead
     default_name, default_city = lead_name_and_city(session, lead_id)
     business_name = (body.business_name or default_name).strip()
@@ -133,6 +149,7 @@ async def analyze_lead_website(
     _: str = Depends(require_admin),
 ) -> WebsiteAnalysisRead:
     """Auditoría profunda con Playwright de la URL elegida (una a la vez)."""
+    _require_website_research()
     lead = resolve_lead_for_research(session, lead_id)   # asegura la fila persistente
     url = body.url.strip()
     if not url:

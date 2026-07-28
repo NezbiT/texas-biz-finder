@@ -35,6 +35,7 @@ class LeadRead(BaseModel):
     is_qualified: bool
     qualification_score: float
     qualification_notes: str | None
+    sells_alcohol: bool = False                 # cruce TABC mixed beverage
     source: str                                 # origen del dato
     created_at: datetime
     updated_at: datetime
