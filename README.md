@@ -77,13 +77,30 @@ TexasBizFinder/                 # repo folder (interno)
 │   └── common/
 │       ├── socrata_bulk.py
 │       └── lead_materialize.py # CSV → DuckDB tipado
+├── rust/
+│   └── tbf-scan/               # first-pass website lead scorer (binary: tbf-scan)
 └── run.py
+```
+
+### Two-binary website scoring
+
+| Path | Role |
+|------|------|
+| **Python / FastAPI** (`run.py`, Playwright) | Deep `website_analyses`: browser, JS, screenshots, research |
+| **`tbf-scan`** (`rust/tbf-scan`) | Fast HTTP-only first pass of `leads.website_url` → `site_scans` |
+
+`tbf-scan` is read-only on `leads` and creates only `site_scans` + indexes + `v_top_leads`. Details: [`rust/tbf-scan/README.md`](rust/tbf-scan/README.md).
+
+```bash
+cd rust && cargo build --release -p tbf-scan
+./target/release/tbf-scan --db ../data/texasbizfinder.db --dry-run
 ```
 
 ## Requisitos
 
 - Python 3.11+
 - Node.js 18+ (frontend)
+- Rust 1.75+ (optional; only for `tbf-scan`)
 - ~2 GB disco libre para CSV masivos (opcional)
 
 ## Setup rápido

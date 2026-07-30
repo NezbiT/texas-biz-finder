@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.3.0] — 2026-07-30
+
+### tbf-scan (Rust)
+
+- **New binary** `tbf-scan` under `rust/tbf-scan`: polite, resumable first-pass scorer for `leads.website_url`.
+- Writes only `site_scans` + indexes + view `v_top_leads` (never alters `leads`).
+- Concurrent fetchers + single SQLite writer, robots.txt honor, per-host 1 rps, `--dry-run` / `--resume` / CSV export.
+- Does **not** replace Playwright `website_analyses` path.
+
 ## [3.2.0] — 2026-07-27
 
 ### Path-based suite (no PC tunnel)
