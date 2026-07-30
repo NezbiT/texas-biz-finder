@@ -34,6 +34,10 @@ frontend/.fallow/
 # Old tunnel credentials (never commit secrets). Path router Worker is tracked.
 # deploy/cloudflare/config.yml is retired stub (safe to commit).
 
+# Rust
+rust/target/
+**/target/
+
 # OS
 .DS_Store
 Thumbs.db
