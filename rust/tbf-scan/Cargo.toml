@@ -1,0 +1,38 @@
+[package]
+name = "tbf-scan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Lightweight website lead scorer for TX BizFinder (tbf-scan)"
+readme = "README.md"
+
+[[bin]]
+name = "tbf-scan"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "4", features = ["derive"] }
+csv = "1"
+futures = "0.3"
+governor = "0.8"
+indicatif = "0.17"
+rand = "0.8"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli", "stream"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+scraper = "0.20"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["full", "test-util"] }
+wiremock = "0.6"
