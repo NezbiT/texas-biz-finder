@@ -5,7 +5,7 @@
 | Path | App `baseURL` | Upstream |
 |------|---------------|----------|
 | `/`, `/app` | `/` (finder) | Vercel `txbizfinder-web` |
-| `/api/*`, `/health` | n/a (FastAPI) | **Oracle** (`API_ORIGIN`) |
+| `/api/*`, `/health` | n/a (FastAPI) | **Render** (`API_ORIGIN`) |
 | `/radar/*` | `/radar/` | Vercel PermitRadar |
 | `/channel/*` | `/channel/` | Vercel ChannelWatch |
 | `/sentinel/*` | `/sentinel/` | Vercel Emissions Sentinel web |
@@ -24,9 +24,9 @@ The Worker **does not strip** path prefixes (assets and Nitro routes live under 
 cd texas-biz-finder/deploy/cloudflare
 npx wrangler login          # once
 npx wrangler deploy
-# After Oracle API has public HTTPS:
+# After Render API has public HTTPS:
 npx wrangler secret put API_ORIGIN
-# paste e.g. https://your-oracle-host
+# paste e.g. https://texas-biz-finder.onrender.com
 ```
 
 Worker → Settings → Domains / Routes:
@@ -59,8 +59,8 @@ Optional overrides (defaults are already correct in `nuxt.config.ts`):
 Finder also needs:
 
 ```
-NUXT_PUBLIC_ADMIN_API_KEY=<same as Oracle>
-NUXT_API_PROXY_URL=https://YOUR-ORACLE-HTTPS-ORIGIN
+NUXT_PUBLIC_ADMIN_API_KEY=<same as Render ADMIN_API_KEY>
+NUXT_API_PROXY_URL=https://YOUR-SERVICE.onrender.com
 ```
 
 ## Redeploy all UIs after baseURL change

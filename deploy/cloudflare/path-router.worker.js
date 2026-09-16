@@ -10,7 +10,7 @@
  * stripPrefix:false for that product so /radar/_nuxt assets resolve.
  *
  *   / , /app        → Finder UI (Vercel) — path kept (SPA/Nuxt handles routes)
- *   /api/* , /health → FastAPI (Oracle API_ORIGIN)
+ *   /api/* , /health → FastAPI (Render API_ORIGIN)
  *   /radar/*        → PermitRadar (prefix stripped until baseURL deploy)
  *   /channel/*      → ChannelWatch
  *   /sentinel/*     → Emissions Sentinel UI
@@ -87,7 +87,7 @@ export default {
         JSON.stringify({
           status: 'error',
           detail:
-            'API_ORIGIN is not configured. Set the Oracle FastAPI HTTPS origin (wrangler secret put API_ORIGIN).',
+            'API_ORIGIN is not configured. Set the Render FastAPI HTTPS origin (npx wrangler secret put API_ORIGIN).',
         }),
         {
           status: 503,
