@@ -39,6 +39,10 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        # CORS_ORIGINS acepta JSON o lista separada por comas. Sin esto,
+        # pydantic-settings intenta decodificar las listas como JSON antes del
+        # validador y una lista CSV impediría que la API arranque.
+        enable_decoding=False,
     )
 
     app_name: str = "TX BizFinder"

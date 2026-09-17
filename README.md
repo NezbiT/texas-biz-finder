@@ -211,6 +211,11 @@ que argparse rechaza. El comando correcto, fijado en `railway.toml`, es
 `python run.py --prod`. La imagen además usa `APP_ENV=production` y exige una
 `ADMIN_API_KEY` fuerte.
 
+`CORS_ORIGINS` debe ser un arreglo JSON en Railway, por ejemplo
+`["https://www.txbizfinder.com","https://txbizfinder.com"]`; una cadena
+separada por comas hizo fallar `Settings()` durante este incidente. El código
+actual también tolera el formato CSV para evitar una regresión.
+
 Para datos bulk, crea un volumen Railway de al menos 5 GB y móntalo en
 `/app/data`. Añade `RAILWAY_RUN_UID=0` (el volumen se monta como root) y estas
 variables:

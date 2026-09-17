@@ -18,6 +18,11 @@
   the insecure development default. `run.py` also narrowly normalizes the
   historic `—prod` argument, preventing a stale Railway setting from taking
   down the API during the migration.
+- **Second confirmed startup error:** Railway had `CORS_ORIGINS` encoded as a
+  comma-separated string. `pydantic-settings` decodes list fields as JSON
+  before validators, so it raised `SettingsError` at `settings = Settings()`.
+  Railway now uses a JSON array and `SettingsConfigDict(enable_decoding=False)`
+  lets the existing validator support both JSON and comma-separated values.
 - **Data issue:** `data/` is gitignored by design. The local source CSVs,
   processed CSV and DuckDB occupy about 1.2 GB, so a GitHub-triggered Railway
   deploy cannot contain `texas_leads.duckdb`. A healthy API in `DATA_BACKEND=csv`
