@@ -9,12 +9,13 @@
   happens before FastAPI can serve the health endpoint; it is not a browser
   CORS error and it is not the normal missing-DuckDB response (which is HTTP
   503 from a running API).
-- **Root configuration issue:** the Docker image defaults to
-  `APP_ENV=production`, while FastAPI deliberately aborts startup if
-  `ADMIN_API_KEY` is missing or is its insecure development default. Railway
-  must therefore define a strong `ADMIN_API_KEY` before the container can
-  become healthy. The Railway deployment log is the source of truth for any
-  additional startup error.
+- **Confirmed root cause:** Railway had `python run.py —prod` as its start
+  command. The character before `prod` was an em dash (`—`), not the two ASCII
+  hyphens required by argparse (`--prod`), so every container exited with
+  `run.py: error: unrecognized arguments: —prod` before FastAPI started.
+  `railway.toml` now pins the valid command `python run.py --prod`. A strong
+  `ADMIN_API_KEY` is also configured because production deliberately rejects
+  the insecure development default.
 - **Data issue:** `data/` is gitignored by design. The local source CSVs,
   processed CSV and DuckDB occupy about 1.2 GB, so a GitHub-triggered Railway
   deploy cannot contain `texas_leads.duckdb`. A healthy API in `DATA_BACKEND=csv`

@@ -205,9 +205,11 @@ reenvía a Railway durante SSR, por lo que el navegador no requiere CORS.
 
 Si `https://texas-biz-finder-production.up.railway.app/health` devuelve
 `502 Application failed to respond`, el contenedor no alcanzó a arrancar; no
-es un fallo de CORS ni una ausencia de datos. La imagen usa
-`APP_ENV=production` y exige una `ADMIN_API_KEY` fuerte, así que esa variable
-debe existir en Railway antes de desplegar.
+es un fallo de CORS ni una ausencia de datos. El incidente de septiembre de
+2026 fue un comando Railway escrito como `python run.py —prod` (guion largo),
+que argparse rechaza. El comando correcto, fijado en `railway.toml`, es
+`python run.py --prod`. La imagen además usa `APP_ENV=production` y exige una
+`ADMIN_API_KEY` fuerte.
 
 Para datos bulk, crea un volumen Railway de al menos 5 GB y móntalo en
 `/app/data`. Añade `RAILWAY_RUN_UID=0` (el volumen se monta como root) y estas
