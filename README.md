@@ -163,8 +163,8 @@ npm run dev
 
 | Pieza | Dónde | Guía |
 |-------|--------|------|
-| Frontend Nuxt | **Vercel** (`frontend-v2/` as Root Directory) | `vercel.json` + `NUXT_API_PROXY_URL` (Render) |
-| Backend FastAPI | **Render** | `render.yaml` + `deploy/render/README.md` |
+| Frontend Nuxt | **Vercel** (`frontend-v2/` as Root Directory) | `vercel.json` + `NUXT_API_PROXY_URL` (Railway) |
+| Backend FastAPI | **Railway** | `railway.toml` + `deploy/railway/README.md` |
 | Edge / paths | **Cloudflare Worker** | `deploy/cloudflare/README.md` — **sin tunnel a tu PC** |
 
 ### Paths públicos (un solo dominio)
@@ -185,13 +185,13 @@ npm run dev
 ```bash
 cd deploy/cloudflare
 npx wrangler deploy
-npx wrangler secret put API_ORIGIN   # HTTPS del FastAPI en Render (sin slash final)
+npx wrangler secret put API_ORIGIN   # HTTPS del FastAPI en Railway (sin slash final)
 ```
 
 Adjunta dominios `www.txbizfinder.com` y `txbizfinder.com` al Worker.
 Apaga/elimina el tunnel antiguo de Zero Trust y los DNS `*.cfargotunnel.com`.
 
-En Vercel (finder, Root Directory **`frontend-v2`**): `NUXT_PUBLIC_ADMIN_API_KEY` + `NUXT_API_PROXY_URL=<Render HTTPS>`.
+En Vercel (finder, Root Directory **`frontend-v2`**): `NUXT_PUBLIC_ADMIN_API_KEY` + `NUXT_API_PROXY_URL=<Railway HTTPS>`.
 
 ## Pipeline masivo (3.36M negocios)
 
