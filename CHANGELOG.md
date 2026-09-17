@@ -15,7 +15,9 @@
   `run.py: error: unrecognized arguments: —prod` before FastAPI started.
   `railway.toml` now pins the valid command `python run.py --prod`. A strong
   `ADMIN_API_KEY` is also configured because production deliberately rejects
-  the insecure development default.
+  the insecure development default. `run.py` also narrowly normalizes the
+  historic `—prod` argument, preventing a stale Railway setting from taking
+  down the API during the migration.
 - **Data issue:** `data/` is gitignored by design. The local source CSVs,
   processed CSV and DuckDB occupy about 1.2 GB, so a GitHub-triggered Railway
   deploy cannot contain `texas_leads.duckdb`. A healthy API in `DATA_BACKEND=csv`
