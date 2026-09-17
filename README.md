@@ -172,7 +172,7 @@ npm run dev
 | Path | Producto |
 |------|----------|
 | `/` · `/app` | TxBizFinder (landing + dashboard) |
-| `/api/*` · `/health` | FastAPI (Oracle) |
+| `/api/*` · `/health` | FastAPI (Railway) |
 | `/radar` | PermitRadar |
 | `/channel` | ChannelWatch |
 | `/sentinel` | Emissions Sentinel |
@@ -191,7 +191,45 @@ npx wrangler secret put API_ORIGIN   # HTTPS del FastAPI en Railway (sin slash f
 Adjunta dominios `www.txbizfinder.com` y `txbizfinder.com` al Worker.
 Apaga/elimina el tunnel antiguo de Zero Trust y los DNS `*.cfargotunnel.com`.
 
-En Vercel (finder, Root Directory **`frontend-v2`**): `NUXT_PUBLIC_ADMIN_API_KEY` + `NUXT_API_PROXY_URL=<Railway HTTPS>`.
+En Vercel (finder, Root Directory **`frontend-v2`**), configura y vuelve a desplegar:
+
+```text
+NUXT_API_PROXY_URL=https://texas-biz-finder-production.up.railway.app
+NUXT_PUBLIC_ADMIN_API_KEY=<mismo valor que ADMIN_API_KEY en Railway>
+```
+
+Deja `NUXT_PUBLIC_API_BASE_URL` vacío: Nuxt recibe `/api/*` en Vercel y lo
+reenvía a Railway durante SSR, por lo que el navegador no requiere CORS.
+
+### Incidente Railway: 502 y DuckDB ausente
+
+Si `https://texas-biz-finder-production.up.railway.app/health` devuelve
+`502 Application failed to respond`, el contenedor no alcanzó a arrancar; no
+es un fallo de CORS ni una ausencia de datos. La imagen usa
+`APP_ENV=production` y exige una `ADMIN_API_KEY` fuerte, así que esa variable
+debe existir en Railway antes de desplegar.
+
+Para datos bulk, crea un volumen Railway de al menos 5 GB y móntalo en
+`/app/data`. Añade `RAILWAY_RUN_UID=0` (el volumen se monta como root) y estas
+variables:
+
+```text
+DATA_BACKEND=csv
+DATABASE_URL=sqlite:////app/data/texasbizfinder.db
+PROCESSED_DUCKDB_PATH=/app/data/processed/texas_leads.duckdb
+PROCESSED_CSV_PATH=/app/data/processed/texas_leads_processed.csv
+FRANCHISE_CSV_PATH=/app/data/raw/texas_franchise_taxpayers.csv
+BEVERAGE_CSV_PATH=/app/data/raw/mixed_beverage_receipts.csv
+DUCKDB_THREADS=1
+DUCKDB_MEMORY_LIMIT=1GB
+ENABLE_WEBSITE_RESEARCH=false
+```
+
+Los datos están excluidos de Git y por eso no llegan con el deploy. Sube los
+artefactos ya procesados al volumen (DuckDB + `bulk_stats.json`) o ejecuta
+`python -m scripts.bulk_pipeline all` dentro del servicio. Cuando `/health`
+muestre `dataReady: true`, el API ya puede hacer búsquedas. Instrucciones y
+validaciones: [`deploy/railway/README.md`](deploy/railway/README.md).
 
 ## Pipeline masivo (3.36M negocios)
 

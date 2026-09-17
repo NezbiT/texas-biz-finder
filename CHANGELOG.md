@@ -1,5 +1,37 @@
 # Changelog
 
+## [3.4.0] — 2026-09-16
+
+### Railway + Vercel production incident
+
+- **Observed:** `https://texas-biz-finder-production.up.railway.app/health`
+  returned Railway HTTP **502** (`Application failed to respond`). The failure
+  happens before FastAPI can serve the health endpoint; it is not a browser
+  CORS error and it is not the normal missing-DuckDB response (which is HTTP
+  503 from a running API).
+- **Root configuration issue:** the Docker image defaults to
+  `APP_ENV=production`, while FastAPI deliberately aborts startup if
+  `ADMIN_API_KEY` is missing or is its insecure development default. Railway
+  must therefore define a strong `ADMIN_API_KEY` before the container can
+  become healthy. The Railway deployment log is the source of truth for any
+  additional startup error.
+- **Data issue:** `data/` is gitignored by design. The local source CSVs,
+  processed CSV and DuckDB occupy about 1.2 GB, so a GitHub-triggered Railway
+  deploy cannot contain `texas_leads.duckdb`. A healthy API in `DATA_BACKEND=csv`
+  returns HTTP 503 for lead searches until that file exists; it never falls
+  back to demo data.
+- **Added:** root `railway.toml` forces the existing Dockerfile builder,
+  configures `/health`, a five-minute healthcheck timeout and bounded restart
+  retries.
+- **Added:** `deploy/railway/README.md` with the required `/app/data` volume,
+  environment variables, permission setting (`RAILWAY_RUN_UID=0`), the exact
+  Railway API URL and the fastest DuckDB upload route.
+- **Changed:** Vercel configuration documentation now uses
+  `NUXT_API_PROXY_URL=https://texas-biz-finder-production.up.railway.app` and
+  requires a Vercel redeploy after setting it. Keeping
+  `NUXT_PUBLIC_API_BASE_URL` empty makes the browser use same-origin `/api`,
+  which Nuxt proxies server-side to Railway.
+
 ## [3.3.0] — 2026-07-30
 
 ### tbf-scan (Rust)
