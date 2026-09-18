@@ -1,5 +1,54 @@
 # Changelog
 
+## [3.4.0] — 2026-09-16
+
+### Railway + Vercel production incident
+
+- **Observed:** `https://texas-biz-finder-production.up.railway.app/health`
+  returned Railway HTTP **502** (`Application failed to respond`). The failure
+  happens before FastAPI can serve the health endpoint; it is not a browser
+  CORS error and it is not the normal missing-DuckDB response (which is HTTP
+  503 from a running API).
+- **Confirmed root cause:** Railway had `python run.py —prod` as its start
+  command. The character before `prod` was an em dash (`—`), not the two ASCII
+  hyphens required by argparse (`--prod`), so every container exited with
+  `run.py: error: unrecognized arguments: —prod` before FastAPI started.
+  `railway.toml` now pins the valid command `python run.py --prod`. A strong
+  `ADMIN_API_KEY` is also configured because production deliberately rejects
+  the insecure development default. `run.py` also narrowly normalizes the
+  historic `—prod` argument, preventing a stale Railway setting from taking
+  down the API during the migration.
+- **Second confirmed startup error:** Railway had `CORS_ORIGINS` encoded as a
+  comma-separated string. `pydantic-settings` decodes list fields as JSON
+  before validators, so it raised `SettingsError` at `settings = Settings()`.
+  Railway now uses a JSON array and `SettingsConfigDict(enable_decoding=False)`
+  lets the existing validator support both JSON and comma-separated values.
+- **Confirmed networking error:** the public Railway domain still targeted port
+  `3939`, while Railway injected `PORT=8080` and Uvicorn correctly listened on
+  that port. The domain target was updated to `8080`; `/health` now returns
+  HTTP 200.
+- **Completed data and frontend cutover:** created the persistent `/app/data`
+  volume, uploaded `texas_leads.duckdb` plus `bulk_stats.json`, and verified
+  the `leads` table has 545,583 rows. `/health` now reports `dataReady: true`.
+  Vercel production/preview variables now proxy `/api/*` to Railway; a public
+  proxy check (`/api/legal`) returns HTTP 200.
+- **Data issue:** `data/` is gitignored by design. The local source CSVs,
+  processed CSV and DuckDB occupy about 1.2 GB, so a GitHub-triggered Railway
+  deploy cannot contain `texas_leads.duckdb`. A healthy API in `DATA_BACKEND=csv`
+  returns HTTP 503 for lead searches until that file exists; it never falls
+  back to demo data.
+- **Added:** root `railway.toml` forces the existing Dockerfile builder,
+  configures `/health`, a five-minute healthcheck timeout and bounded restart
+  retries.
+- **Added:** `deploy/railway/README.md` with the required `/app/data` volume,
+  environment variables, permission setting (`RAILWAY_RUN_UID=0`), the exact
+  Railway API URL and the fastest DuckDB upload route.
+- **Changed:** Vercel configuration documentation now uses
+  `NUXT_API_PROXY_URL=https://texas-biz-finder-production.up.railway.app` and
+  requires a Vercel redeploy after setting it. Keeping
+  `NUXT_PUBLIC_API_BASE_URL` empty makes the browser use same-origin `/api`,
+  which Nuxt proxies server-side to Railway.
+
 ## [3.3.0] — 2026-07-30
 
 ### tbf-scan (Rust)

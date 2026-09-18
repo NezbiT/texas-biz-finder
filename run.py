@@ -21,6 +21,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 
+def _normalize_legacy_cli_args(argv: list[str]) -> list[str]:
+    """Accept Railway's historic em-dash production flag during migration.
+
+    A previous Railway service setting stored ``—prod`` (U+2014) rather than
+    argparse's required ``--prod``. Keep this narrow compatibility shim so an
+    old remote start command cannot take the API down while ``railway.toml``
+    supplies the canonical command.
+    """
+    return ["--prod" if arg == "—prod" else arg for arg in argv]
+
+
 def bootstrap(*, seed: bool = False, with_demo_seed: bool = False) -> None:
     """Initialize DB and optionally ingest light open-data (no demo by default)."""
     from backend.app.database import init_db
@@ -97,7 +108,7 @@ def main() -> None:
         action="store_true",
         help=argparse.SUPPRESS,
     )
-    args = parser.parse_args()
+    args = parser.parse_args(_normalize_legacy_cli_args(sys.argv[1:]))
 
     if args.prod:
         os.environ.setdefault("APP_ENV", "production")
