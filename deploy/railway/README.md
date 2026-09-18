@@ -16,10 +16,13 @@ Adjunta un volumen al mismo servicio con:
 Mount path: /app/data
 ```
 
-Reserva al menos **5 GB**. El pipeline conserva los dos CSV de origen mientras
-materializa `processed/texas_leads.duckdb`; con el volumen lleno el proceso se
-interrumpe. El volumen se monta en runtime, así que nunca pongas la ingesta en
-el build ni en un pre-deploy command.
+Reserva al menos **5 GB** si ejecutarás el pipeline completo en Railway. El
+pipeline conserva los dos CSV de origen mientras materializa
+`processed/texas_leads.duckdb`; con el volumen lleno el proceso se interrumpe.
+Si subes únicamente la DuckDB ya procesada y `bulk_stats.json`, **500 MB** es
+suficiente para el conjunto actual (1 GB deja margen). El volumen se monta en
+runtime, así que nunca pongas la ingesta en el build ni en un pre-deploy
+command.
 
 Como la imagen usa el usuario `appuser` y Railway monta los volúmenes como
 root, añade `RAILWAY_RUN_UID=0` a las variables del servicio. Esto permite que
@@ -81,6 +84,10 @@ curl -fsS https://TU-API.up.railway.app/health
 ```
 
 Debe mostrar `"dataBackend":"csv"` y `"dataReady":true`.
+
+Si el contenedor muestra Uvicorn listo pero el dominio responde 502, revisa el
+**Target Port** del dominio en Railway. Debe coincidir con `PORT` en los logs
+del contenedor (este servicio usa `8080`, no el anterior `3939`).
 
 ## 4. Enlazar Vercel
 

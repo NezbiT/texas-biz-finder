@@ -217,8 +217,10 @@ separada por comas hizo fallar `Settings()` durante este incidente. El código
 actual también tolera el formato CSV para evitar una regresión.
 
 Para datos bulk, crea un volumen Railway de al menos 5 GB y móntalo en
-`/app/data`. Añade `RAILWAY_RUN_UID=0` (el volumen se monta como root) y estas
-variables:
+`/app/data` si vas a ejecutar `bulk_pipeline all` dentro de Railway. Si subes
+la DuckDB ya procesada, como en producción, 500 MB basta para la DuckDB y los
+metadatos (1 GB deja margen). Añade `RAILWAY_RUN_UID=0` (el volumen se monta
+como root) y estas variables:
 
 ```text
 DATA_BACKEND=csv
@@ -237,6 +239,11 @@ artefactos ya procesados al volumen (DuckDB + `bulk_stats.json`) o ejecuta
 `python -m scripts.bulk_pipeline all` dentro del servicio. Cuando `/health`
 muestre `dataReady: true`, el API ya puede hacer búsquedas. Instrucciones y
 validaciones: [`deploy/railway/README.md`](deploy/railway/README.md).
+
+Si los logs muestran Uvicorn escuchando, pero el dominio devuelve 502, revisa
+el **Target Port** del dominio Railway: debe coincidir con el `PORT` que
+Railway inyectó (en este despliegue fue `8080`; el valor antiguo `3939` fue la
+última causa del 502).
 
 ## Pipeline masivo (3.36M negocios)
 

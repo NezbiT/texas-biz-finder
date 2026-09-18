@@ -23,6 +23,15 @@
   before validators, so it raised `SettingsError` at `settings = Settings()`.
   Railway now uses a JSON array and `SettingsConfigDict(enable_decoding=False)`
   lets the existing validator support both JSON and comma-separated values.
+- **Confirmed networking error:** the public Railway domain still targeted port
+  `3939`, while Railway injected `PORT=8080` and Uvicorn correctly listened on
+  that port. The domain target was updated to `8080`; `/health` now returns
+  HTTP 200.
+- **Completed data and frontend cutover:** created the persistent `/app/data`
+  volume, uploaded `texas_leads.duckdb` plus `bulk_stats.json`, and verified
+  the `leads` table has 545,583 rows. `/health` now reports `dataReady: true`.
+  Vercel production/preview variables now proxy `/api/*` to Railway; a public
+  proxy check (`/api/legal`) returns HTTP 200.
 - **Data issue:** `data/` is gitignored by design. The local source CSVs,
   processed CSV and DuckDB occupy about 1.2 GB, so a GitHub-triggered Railway
   deploy cannot contain `texas_leads.duckdb`. A healthy API in `DATA_BACKEND=csv`
