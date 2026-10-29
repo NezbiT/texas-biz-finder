@@ -33,7 +33,8 @@ async def lifespan(_: FastAPI):
         }:
             raise RuntimeError(
                 "APP_ENV=production requires a strong ADMIN_API_KEY "
-                "(not the default admin-dev-key-change-me)"
+                "(not the default admin-dev-key-change-me). "
+                "On Render: Environment → ADMIN_API_KEY (or Blueprint generateValue)."
             )
     init_db()
     yield

@@ -163,8 +163,8 @@ npm run dev
 
 | Pieza | Dónde | Guía |
 |-------|--------|------|
-| Frontend Nuxt | **Vercel** (`frontend-v2/`) | `vercel.json` + `NUXT_API_PROXY_URL` (Oracle) |
-| Backend FastAPI | **Oracle Free Tier** | `deploy/oracle/README.md` |
+| Frontend Nuxt | **Vercel** (`frontend-v2/` as Root Directory) | `vercel.json` + `NUXT_API_PROXY_URL` (Railway) |
+| Backend FastAPI | **Railway** | `railway.toml` + `deploy/railway/README.md` |
 | Edge / paths | **Cloudflare Worker** | `deploy/cloudflare/README.md` — **sin tunnel a tu PC** |
 
 ### Paths públicos (un solo dominio)
@@ -172,7 +172,7 @@ npm run dev
 | Path | Producto |
 |------|----------|
 | `/` · `/app` | TxBizFinder (landing + dashboard) |
-| `/api/*` · `/health` | FastAPI (Oracle) |
+| `/api/*` · `/health` | FastAPI (Railway) |
 | `/radar` | PermitRadar |
 | `/channel` | ChannelWatch |
 | `/sentinel` | Emissions Sentinel |
@@ -185,13 +185,65 @@ npm run dev
 ```bash
 cd deploy/cloudflare
 npx wrangler deploy
-npx wrangler secret put API_ORIGIN   # HTTPS del FastAPI en Oracle
+npx wrangler secret put API_ORIGIN   # HTTPS del FastAPI en Railway (sin slash final)
 ```
 
 Adjunta dominios `www.txbizfinder.com` y `txbizfinder.com` al Worker.
 Apaga/elimina el tunnel antiguo de Zero Trust y los DNS `*.cfargotunnel.com`.
 
-En Vercel (finder): `NUXT_PUBLIC_ADMIN_API_KEY` + `NUXT_API_PROXY_URL=<Oracle HTTPS>`.
+En Vercel (finder, Root Directory **`frontend-v2`**), configura y vuelve a desplegar:
+
+```text
+NUXT_API_PROXY_URL=https://texas-biz-finder-production.up.railway.app
+NUXT_PUBLIC_ADMIN_API_KEY=<mismo valor que ADMIN_API_KEY en Railway>
+```
+
+Deja `NUXT_PUBLIC_API_BASE_URL` vacío: Nuxt recibe `/api/*` en Vercel y lo
+reenvía a Railway durante SSR, por lo que el navegador no requiere CORS.
+
+### Incidente Railway: 502 y DuckDB ausente
+
+Si `https://texas-biz-finder-production.up.railway.app/health` devuelve
+`502 Application failed to respond`, el contenedor no alcanzó a arrancar; no
+es un fallo de CORS ni una ausencia de datos. El incidente de septiembre de
+2026 fue un comando Railway escrito como `python run.py —prod` (guion largo),
+que argparse rechaza. El comando correcto, fijado en `railway.toml`, es
+`python run.py --prod`. La imagen además usa `APP_ENV=production` y exige una
+`ADMIN_API_KEY` fuerte.
+
+`CORS_ORIGINS` debe ser un arreglo JSON en Railway, por ejemplo
+`["https://www.txbizfinder.com","https://txbizfinder.com"]`; una cadena
+separada por comas hizo fallar `Settings()` durante este incidente. El código
+actual también tolera el formato CSV para evitar una regresión.
+
+Para datos bulk, crea un volumen Railway de al menos 5 GB y móntalo en
+`/app/data` si vas a ejecutar `bulk_pipeline all` dentro de Railway. Si subes
+la DuckDB ya procesada, como en producción, 500 MB basta para la DuckDB y los
+metadatos (1 GB deja margen). Añade `RAILWAY_RUN_UID=0` (el volumen se monta
+como root) y estas variables:
+
+```text
+DATA_BACKEND=csv
+DATABASE_URL=sqlite:////app/data/texasbizfinder.db
+PROCESSED_DUCKDB_PATH=/app/data/processed/texas_leads.duckdb
+PROCESSED_CSV_PATH=/app/data/processed/texas_leads_processed.csv
+FRANCHISE_CSV_PATH=/app/data/raw/texas_franchise_taxpayers.csv
+BEVERAGE_CSV_PATH=/app/data/raw/mixed_beverage_receipts.csv
+DUCKDB_THREADS=1
+DUCKDB_MEMORY_LIMIT=1GB
+ENABLE_WEBSITE_RESEARCH=false
+```
+
+Los datos están excluidos de Git y por eso no llegan con el deploy. Sube los
+artefactos ya procesados al volumen (DuckDB + `bulk_stats.json`) o ejecuta
+`python -m scripts.bulk_pipeline all` dentro del servicio. Cuando `/health`
+muestre `dataReady: true`, el API ya puede hacer búsquedas. Instrucciones y
+validaciones: [`deploy/railway/README.md`](deploy/railway/README.md).
+
+Si los logs muestran Uvicorn escuchando, pero el dominio devuelve 502, revisa
+el **Target Port** del dominio Railway: debe coincidir con el `PORT` que
+Railway inyectó (en este despliegue fue `8080`; el valor antiguo `3939` fue la
+última causa del 502).
 
 ## Pipeline masivo (3.36M negocios)
 

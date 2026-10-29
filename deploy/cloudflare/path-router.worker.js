@@ -3,14 +3,11 @@
  *
  * Single domain, path-based products. NO tunnel to a home PC.
  *
- * CURRENT MODE: stripPrefix=true for product UIs so existing Vercel deploys
- * (root-mounted Nuxt apps) work at www.txbizfinder.com/{radar,channel,…}.
- *
- * After each product is redeployed with app.baseURL=/radar/ etc., set
- * stripPrefix:false for that product so /radar/_nuxt assets resolve.
+ * Radar and Map ship with app.baseURL=/radar/ and /map/ — keep the prefix.
+ * Other product UIs still strip until those Vercel apps set baseURL.
  *
  *   / , /app        → Finder UI (Vercel) — path kept (SPA/Nuxt handles routes)
- *   /api/* , /health → FastAPI (Oracle API_ORIGIN)
+ *   /api/* , /health → FastAPI (Render API_ORIGIN)
  *   /radar/*        → PermitRadar (prefix stripped until baseURL deploy)
  *   /channel/*      → ChannelWatch
  *   /sentinel/*     → Emissions Sentinel UI
@@ -42,13 +39,14 @@ function resolveRoute(pathname, env) {
   const table = [
     { prefix: '/api', origin: apiOrigin, stripPrefix: false, requireOrigin: true },
     { prefix: '/health', origin: apiOrigin, stripPrefix: false, requireOrigin: true },
-    // stripPrefix true until those Vercel projects ship baseURL builds
-    { prefix: '/radar', origin: (env.RADAR_ORIGIN || DEFAULTS.RADAR_ORIGIN).replace(/\/$/, ''), stripPrefix: true },
+    // Radar + Map are deployed with matching Nuxt baseURL; keep the prefix so
+    // /radar/_nuxt and /map/_nuxt resolve. Other products still strip.
+    { prefix: '/radar', origin: (env.RADAR_ORIGIN || DEFAULTS.RADAR_ORIGIN).replace(/\/$/, ''), stripPrefix: false },
     { prefix: '/channel', origin: (env.CHANNEL_ORIGIN || DEFAULTS.CHANNEL_ORIGIN).replace(/\/$/, ''), stripPrefix: true },
     { prefix: '/sentinel', origin: (env.SENTINEL_ORIGIN || DEFAULTS.SENTINEL_ORIGIN).replace(/\/$/, ''), stripPrefix: true },
     { prefix: '/flood', origin: (env.FLOOD_ORIGIN || DEFAULTS.FLOOD_ORIGIN).replace(/\/$/, ''), stripPrefix: true },
     { prefix: '/power', origin: (env.POWER_ORIGIN || DEFAULTS.POWER_ORIGIN).replace(/\/$/, ''), stripPrefix: true },
-    { prefix: '/map', origin: (env.MAP_ORIGIN || DEFAULTS.MAP_ORIGIN).replace(/\/$/, ''), stripPrefix: true },
+    { prefix: '/map', origin: (env.MAP_ORIGIN || DEFAULTS.MAP_ORIGIN).replace(/\/$/, ''), stripPrefix: false },
   ]
 
   for (const row of table) {
@@ -87,7 +85,7 @@ export default {
         JSON.stringify({
           status: 'error',
           detail:
-            'API_ORIGIN is not configured. Set the Oracle FastAPI HTTPS origin (wrangler secret put API_ORIGIN).',
+            'API_ORIGIN is not configured. Set the Render FastAPI HTTPS origin (npx wrangler secret put API_ORIGIN).',
         }),
         {
           status: 503,
@@ -120,6 +118,17 @@ export default {
     }
 
     let response = await fetch(upstream.toString(), init)
+
+    // Radar/Map keep their prefix; if the new baseURL build is not live yet,
+    // fall back to the old strip-prefix origin so HTML still serves.
+    if (
+      response.status === 404 &&
+      !route.stripPrefix &&
+      (route.prefix === '/radar' || route.prefix === '/map')
+    ) {
+      const stripped = buildUpstreamUrl(request.url, { ...route, stripPrefix: true })
+      response = await fetch(stripped.toString(), init)
+    }
 
     // Finder SPA fallback: /app (and other client routes) may 404 on old Vite deploy
     if (

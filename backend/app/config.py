@@ -11,8 +11,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _default_cors_origins() -> list[str]:
-    """Orígenes seguros por defecto (local Nuxt/Vite + producción Vercel)."""
-    return [
+    """Orígenes seguros por defecto (local Nuxt/Vite + Vercel + Render)."""
+    origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5173",
@@ -20,7 +20,17 @@ def _default_cors_origins() -> list[str]:
         "https://www.txbizfinder.com",
         "https://txbizfinder.com",
         "https://txbizfinder-web.vercel.app",
+        "https://texas-biz-finder.vercel.app",
     ]
+    render_url = (os.getenv("RENDER_EXTERNAL_URL") or "").rstrip("/")
+    if render_url and render_url not in origins:
+        origins.append(render_url)
+    vercel_url = (os.getenv("VERCEL_URL") or "").strip()
+    if vercel_url:
+        origin = vercel_url if vercel_url.startswith("https://") else f"https://{vercel_url}"
+        if origin not in origins:
+            origins.append(origin)
+    return origins
 
 
 class Settings(BaseSettings):
@@ -29,6 +39,10 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        # CORS_ORIGINS acepta JSON o lista separada por comas. Sin esto,
+        # pydantic-settings intenta decodificar las listas como JSON antes del
+        # validador y una lista CSV impediría que la API arranque.
+        enable_decoding=False,
     )
 
     app_name: str = "TX BizFinder"
